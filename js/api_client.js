@@ -589,8 +589,15 @@ const API_CLIENT = (() => {
 
     onProgress?.({ status: 'processing', message: '正在抠图中...' });
 
-    const body = imageBase64
-      ? { image: imageBase64 }
+    let processedImage = imageBase64;
+
+    // 如果是 base64，压缩到最大 2000px 宽度
+    if (imageBase64) {
+      processedImage = await compressImage(imageBase64, 2000);
+    }
+
+    const body = processedImage
+      ? { image: processedImage }
       : { image_url: imageUrl };
 
     const res = await fetch(REMOVE_BG_API, {
@@ -613,6 +620,32 @@ const API_CLIENT = (() => {
     onProgress?.({ status: 'succeeded' });
 
     return [{ url: data.url }];
+  }
+
+  // 压缩图片到指定最大宽度
+  async function compressImage(dataUrl, maxWidth) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        // 如果图片已经小于最大宽度，直接返回
+        if (img.width <= maxWidth) {
+          resolve(dataUrl);
+          return;
+        }
+
+        // 计算缩放后的尺寸
+        const ratio = maxWidth / img.width;
+        const canvas = document.createElement('canvas');
+        canvas.width = maxWidth;
+        canvas.height = Math.round(img.height * ratio);
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
+      };
+      img.src = dataUrl;
+    });
   }
 
   // ===================== 设置 =====================
