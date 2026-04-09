@@ -575,8 +575,8 @@ const API_CLIENT = (() => {
     // 优先从 localStorage 读取（用户可自定义）
     const saved = localStorage.getItem('fs_remove_bg_api');
     if (saved) return saved;
-    // 默认值：Cloudflare Worker 代理
-    return 'https://fashion-studio-api.07a587f6f96d973c7b133777c5b280ed.workers.dev/api/remove-bg';
+    // 默认值：Vercel Serverless Function 代理
+    return 'https://vercel-api-ebon-six.vercel.app/api/remove-bg';
   })();
 
   // 智能抠图主方法 - 调用线上 Serverless Function
