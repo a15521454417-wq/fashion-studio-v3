@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FashionStudio — AI 时尚生图工作站</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/camera_view.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ===================== 顶栏 ===================== -->
+  <header class="topbar">
+    <div class="topbar__left">
+      <span class="topbar__logo">
+        <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </span>
+      <h1 class="topbar__title">FashionStudio</h1>
+      <span class="topbar__badge">Studio</span>
+      <span class="topbar__sep"></span>
+
+      <!-- 功能 Tab 横排 -->
+      <nav class="tab-nav" id="tabNav">
+        <button class="tab-nav__item active" data-tab="creative">
+          <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <span>创意生图</span>
+        </button>
+        <button class="tab-nav__item" data-tab="wearables">
+          <svg viewBox="0 0 24 24"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>
+          <span>万物穿戴</span>
+        </button>
+        <button class="tab-nav__item" data-tab="model">
+          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>模特修整</span>
+        </button>
+        <button class="tab-nav__item" data-tab="retouch">
+          <svg viewBox="0 0 24 24"><path d="M12 3l1.912 5.813h6.088l-4.924 3.574 1.882 5.813L12 14.626l-4.958 3.574 1.882-5.813L4 8.813h6.088L12 3z"/></svg>
+          <span>商品精修</span>
+        </button>
+        <button class="tab-nav__item" data-tab="cutout">
+          <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+          <span>智能抠图</span>
+        </button>
+        <button class="tab-nav__item" data-tab="background">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>换背景</span>
+        </button>
+        <button class="tab-nav__item" data-tab="edit">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span>图片编辑</span>
+        </button>
+        <span class="topbar__sep topbar__sep--wan"></span>
+        <button class="tab-nav__item tab-nav__item--wan" data-tab="wan-image">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>万相生图</span>
+        </button>
+        <button class="tab-nav__item tab-nav__item--wan" data-tab="wan-video">
+          <svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          <span>万相视频</span>
+        </button>
+        <span class="topbar__sep"></span>
+        <button class="tab-nav__item tab-nav__item--accent" data-tab="lighting">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <span>光影工坊</span>
+        </button>
+        <button class="tab-nav__item tab-nav__item--accent" data-tab="grid">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>宫格生成</span>
+        </button>
+        <button class="tab-nav__item tab-nav__item--accent" data-tab="multiangle">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          <span>多角度</span>
+        </button>
+        <button class="tab-nav__item tab-nav__item--accent" data-tab="camera_view">
+          <svg viewBox="0 0 24 24"><path d="M12 15.2c-1.78 0-3.2-1.42-3.2-3.2s1.42-3.2 3.2-3.2 3.2 1.42 3.2 3.2-1.42 3.2-3.2 3.2zm9-9.8h-3.17l-1.86-2H8.03l-1.86 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6.4c0-1.1-.9-2-2-2zm-9 15.5c-3.35 0-6.2-2.05-7.4-5.05l1.4-.65C13.08 18.12 14.5 19.9 17 19.9c2.5 0 3.92-1.78 4.98-4.15l1.4.65c-1.18 3-4.07 5.05-7.38 5.05z"/></svg>
+          <span>相机视角</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="topbar__right">
+      <span class="status-dot status-dot--online" id="apiStatus"></span>
+      <span class="status-text" id="apiStatusText">就绪</span>
+      <span class="topbar__sep"></span>
+      <button class="btn btn--ghost btn--icon" id="btnHistory" title="生成历史">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </button>
+      <button class="btn btn--ghost btn--icon" id="btnSettings" title="API 设置">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== 子面板浮动层（选项配置） ===================== -->
+  <div class="sub-panel-overlay hidden" id="subPanelOverlay"></div>
+  <aside class="sub-panel" id="subPanel">
+    <div class="sub-panel__header">
+      <h3 class="sub-panel__title" id="subPanelTitle">创意生图</h3>
+      <button class="icn-btn" id="closeSubPanel" aria-label="关闭">&times;</button>
+    </div>
+    <div class="sub-panel__body" id="subPanelBody">
+      <!-- 动态渲染 -->
+    </div>
+  </aside>
+
+  <!-- ===================== 任务面板（多任务并行） ===================== -->
+  <div class="task-panel hidden" id="taskPanel">
+    <div class="task-panel__header">
+      <h3 class="task-panel__title">并行任务</h3>
+      <button class="btn btn--accent btn--sm" id="btnNewTask">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建任务
+      </button>
+    </div>
+    <div class="task-panel__list" id="taskList"></div>
+  </div>
+
+  <!-- ===================== 画布区（主视觉区） ===================== -->
+  <main class="canvas-area" id="canvasArea">
+
+    <!-- 加载状态 -->
+    <div class="loading-state hidden" id="loadingState">
+      <div class="loading-spinner"></div>
+      <p class="loading-state__text" id="loadingText">正在生成，请稍候...</p>
+      <p class="loading-state__sub" id="loadingSub">预计 10-30 秒</p>
+    </div>
+
+    <!-- 生成结果 -->
+    <div class="results hidden" id="results">
+      <div class="results__header">
+        <h3 class="results__title">生成结果</h3>
+        <div class="results__actions">
+          <button class="btn btn--ghost btn--sm" id="btnDownloadAll">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            全部下载
+          </button>
+          <button class="btn btn--ghost btn--sm" id="btnNewGenerate">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            再生成
+          </button>
+        </div>
+      </div>
+      <div class="results__grid" id="resultsGrid"></div>
+    </div>
+
+    <!-- 空状态 -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state__icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      </div>
+      <h3 class="empty-state__title">准备就绪</h3>
+      <p class="empty-state__text">在底部输入描述，选择参数后点击生成</p>
+      <div class="empty-state__tips">
+        <p>💡 <strong>小技巧：</strong>描述越具体效果越好 · 点击顶栏功能Tab可切换模式 · 点击「⚙」展开选项面板</p>
+      </div>
+    </div>
+
+    <!-- 功能说明 -->
+    <div class="info-panel" id="infoPanel">
+      <h4 class="info-panel__title">功能说明</h4>
+      <div class="info-panel__content" id="infoContent">
+        <p>选择顶栏功能后，这里会显示对应的预设提示词和使用说明。</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ===================== 底部控制台 ===================== -->
+  <footer class="control-dock" id="controlDock">
+
+    <!-- 参考图条 -->
+    <div class="ref-strip hidden" id="refSection">
+      <div class="ref-strip__images" id="refImagesGrid"></div>
+      <div class="ref-strip__add" id="mainRefZone">
+        <input type="file" id="mainRefInput" accept="image/*" hidden multiple />
+        <div class="ref-strip__add-inner" id="mainRefPreview">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span id="refHintText">添加参考图</span>
+        </div>
+      </div>
+      <button class="ref-strip__clear hidden" id="btnClearRef" title="清空参考图">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Prompt + 生成行 -->
+    <div class="dock-prompt-row">
+      <div class="prompt-box">
+        <textarea
+          class="prompt-box__input"
+          id="promptInput"
+          placeholder="描述你想要的画面，例如：一位穿着白色泡泡袖蕾丝连衣裙的女生，在法式咖啡店内..."
+          rows="2"
+        ></textarea>
+        <div class="prompt-box__footer">
+          <span class="prompt-box__counter" id="promptCounter">0 / 500</span>
+          <div class="prompt-box__actions">
+            <button class="btn btn--ghost btn--sm" id="btnClearPrompt">清空</button>
+            <button class="btn btn--accent btn--sm" id="btnEnhance">🤖 AI优化</button>
+          </div>
+        </div>
+        <!-- Agent 思考面板（折叠） -->
+        <div class="agent-panel hidden" id="agentPanel">
+          <div class="agent-panel__header" id="agentPanelHeader">
+            <div class="agent-panel__indicator">
+              <span class="agent-panel__dot"></span>
+              <span class="agent-panel__label" id="agentPanelLabel">Agent 分析</span>
+            </div>
+            <div class="agent-panel__actions">
+              <button class="btn btn--ghost btn--sm btn--accent" id="btnAgentApply">采纳优化</button>
+              <button class="btn btn--ghost btn--sm" id="btnAgentRetry">🔄 重试</button>
+              <button class="icn-btn icn-btn--sm" id="btnAgentClose" title="关闭">&times;</button>
+            </div>
+          </div>
+          <div class="agent-panel__thinking" id="agentThinking"></div>
+          <div class="agent-panel__divider">
+            <span>优化后的 Prompt</span>
+          </div>
+          <div class="agent-panel__enhanced" id="agentEnhanced"></div>
+          <div class="agent-panel__footer">
+            <span class="agent-panel__source" id="agentSource"></span>
+            <span class="agent-panel__cost">≈ ¥0.001</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn--generate" id="btnGenerate">
+        <span class="btn__icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </span>
+        <span class="btn__text">生成</span>
+      </button>
+    </div>
+
+    <!-- 参数行 -->
+    <div class="dock-params-row">
+      <div class="dock-params-row__left">
+        <!-- 并行任务按钮 -->
+        <button class="dock-btn" id="btnToggleTaskPanel" title="并行任务">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>并行任务</span>
+          <span class="task-badge hidden" id="taskBadge">0</span>
+        </button>
+        <!-- 参考图按钮 -->
+        <button class="dock-btn" id="btnToggleRef" title="添加参考图">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>参考图</span>
+        </button>
+        <!-- 选项面板按钮 -->
+        <button class="dock-btn" id="btnToggleSubPanel" title="选项面板">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>选项</span>
+        </button>
+        <!-- 生图数量（创意生图 Tab 专用） -->
+        <div class="count-selector hidden" id="countSelector">
+          <button class="count-btn" data-count="1">1张</button>
+          <button class="count-btn active" data-count="2">2张</button>
+          <button class="count-btn" data-count="4">4张</button>
+        </div>
+      </div>
+
+      <div class="dock-params-row__right">
+        <!-- 模型 -->
+        <div class="seg-control" id="modelSelector">
+          <button class="seg-btn active" data-model="flash" data-label="BLOOOOM Flash" title="gemini-3.1-flash-image-preview">Flash</button>
+          <button class="seg-btn" data-model="pro" data-label="BLOOOOM Pro" title="gemini-3-pro-image-preview">Pro</button>
+        </div>
+        <!-- 比例 -->
+        <div class="seg-control seg-control--wrap" id="aspectSelector">
+          <button class="seg-btn seg-btn--sm active" data-aspect="auto" data-w="0" data-h="0" title="保持原图比例">自动</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="1:1" data-w="1024" data-h="1024">1:1</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="4:3" data-w="1024" data-h="768">4:3</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="3:4" data-w="768" data-h="1024">3:4</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="3:2" data-w="1024" data-h="683">3:2</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="2:3" data-w="683" data-h="1024">2:3</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="16:9" data-w="1024" data-h="576">16:9</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="9:16" data-w="576" data-h="1024">9:16</button>
+          <button class="seg-btn seg-btn--sm" data-aspect="21:9" data-w="1024" data-h="438">21:9</button>
+        </div>
+        <!-- 分辨率 -->
+        <div class="seg-control" id="qualitySelector">
+          <button class="seg-btn seg-btn--sm" data-quality="512">512</button>
+          <button class="seg-btn seg-btn--sm active" data-quality="1K">1K</button>
+          <button class="seg-btn seg-btn--sm" data-quality="2K">2K</button>
+          <button class="seg-btn seg-btn--sm" data-quality="4K">4K</button>
+        </div>
+        <kbd class="kbd-hint">⌘↵</kbd>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===================== 历史记录面板 ===================== -->
+  <div class="history-panel" id="historyPanel">
+    <div class="history-panel__header">
+      <h3 class="history-panel__title">生成历史</h3>
+      <div class="history-panel__actions">
+        <button class="btn btn--ghost btn--sm" id="clearHistory">清空</button>
+        <button class="icn-btn" id="closeHistory" title="关闭">×</button>
+      </div>
+    </div>
+    <div class="history-panel__list" id="historyList">
+      <div class="history-empty">暂无历史记录</div>
+    </div>
+  </div>
+  <div class="history-overlay" id="historyOverlay"></div>
+
+  <!-- ===================== 放大镜弹窗 ===================== -->
+  <div class="lightbox hidden" id="lightbox">
+    <button class="lightbox__close" id="closeLightbox" aria-label="关闭">×</button>
+    <img class="lightbox__img" id="lightboxImg" src="" alt="预览" />
+    <div class="lightbox__toolbar">
+      <button class="btn btn--ghost btn--sm" id="lbDownload">⬇ 下载</button>
+      <button class="btn btn--ghost btn--sm" id="lbCopy">📋 复制Prompt</button>
+    </div>
+  </div>
+
+  <!-- ===================== 设置弹窗 ===================== -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal__header">
+        <h3 class="modal__title">API 设置</h3>
+        <button class="modal__close" id="closeSettings" aria-label="关闭">×</button>
+      </div>
+      <div class="modal__body">
+        <div class="form-group">
+          <label class="form-label">BLOOOOM 端点</label>
+          <div class="seg-control" id="endpointSelector">
+            <button class="seg-btn" data-endpoint="t8star" id="epBtnT8star">ai.t8star.cn</button>
+            <button class="seg-btn" data-endpoint="comfly" id="epBtnComfly">api.comfly.chat</button>
+          </div>
+          <p class="form-hint">选择要使用的 API 端点，两个端点共用同一个 Key</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">BLOOOOM API Key</label>
+          <input type="password" class="input-field" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
+          <p class="form-hint" id="apiKeyHint">当前会话有效，关闭后需重新输入</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">当前模型</label>
+          <div class="form-static" id="currentModelInfo">
+            <span class="form-badge">BLOOOOM Flash</span>
+            <span class="form-hint">gemini-3.1-flash-image-preview</span>
+          </div>
+        </div>
+
+        <hr class="form-divider" />
+
+        <div class="form-group">
+          <label class="form-label">万相 Wan 2.7 API Key</label>
+          <input type="password" class="input-field" id="wanApiKeyInput" placeholder="sk-... (阿里云百炼 DashScope)" autocomplete="off" />
+          <p class="form-hint" id="wanApiKeyHint">阿里云百炼平台 Key，用于万相生图和视频生成</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">万相状态</label>
+          <div class="form-static" id="wanStatusInfo">
+            <span class="form-badge form-badge--wan">未配置</span>
+          </div>
+        </div>
+
+        <hr class="form-divider" />
+
+        <div class="form-group">
+          <label class="form-label">智能抠图</label>
+          <div class="form-static" id="replicateStatusInfo">
+            <span class="form-badge form-badge--ok">已就绪</span>
+            <span class="form-hint">通过云端代理调用，无需配置 API Key</span>
+          </div>
+        </div>
+
+        <hr class="form-divider" />
+
+        <div class="form-group">
+          <label class="form-label">输出目录</label>
+          <input type="text" class="input-field" id="outputDir" placeholder="~/Documents/FashionStudio_Output" />
+        </div>
+
+        <hr class="form-divider" />
+
+        <div class="form-group">
+          <label class="form-label">🤖 AI Prompt 优化（Agent）</label>
+          <p class="form-hint" style="margin-bottom: 8px;">使用 LLM 智能分析并优化你的提示词，提升生图质量</p>
+          <div class="seg-control" id="agentSourceSelector">
+            <button class="seg-btn" data-source="blooom">BLOOOOM (Gemini)</button>
+            <button class="seg-btn" data-source="dashscope">百炼 (Qwen)</button>
+          </div>
+          <p class="form-hint" id="agentSourceHint">BLOOOOM: 使用 gemini-2.5-flash，免费额度内可用</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Agent 模型（可选）</label>
+          <input type="text" class="input-field" id="agentModelInput" placeholder="留空使用默认模型" autocomplete="off" />
+          <p class="form-hint">BLOOOOM 默认 gemini-2.5-flash · 百炼默认 qwen-turbo</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Agent 状态</label>
+          <div class="form-static" id="agentStatusInfo">
+            <span class="form-badge form-badge--wan">检测中...</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--ghost" id="cancelSettings">取消</button>
+        <button class="btn btn--primary" id="saveSettings">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== 首次启动 API Key 引导 ===================== -->
+  <div class="setup-overlay hidden" id="setupOverlay">
+    <div class="setup-card">
+      <div class="setup-card__icon">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
+      <h2 class="setup-card__title">欢迎使用 FashionStudio</h2>
+      <p class="setup-card__desc">首次使用需要配置 API Key 才能开始生图。Key 仅保存在你的浏览器本地，不会上传到任何服务器。</p>
+
+      <div class="setup-card__field">
+        <label class="setup-card__label">BLOOOOM API Key <span class="setup-card__req">*必填</span></label>
+        <input type="password" class="setup-card__input" id="setupBlooomKey" placeholder="sk-..." autocomplete="off" />
+        <p class="setup-card__hint">用于创意生图、万物穿戴、模特修整等功能</p>
+      </div>
+
+      <div class="setup-card__field">
+        <label class="setup-card__label">万相 Wan API Key <span class="setup-card__opt">选填</span></label>
+        <input type="password" class="setup-card__input" id="setupWanKey" placeholder="sk-... (阿里云百炼 DashScope)" autocomplete="off" />
+        <p class="setup-card__hint">用于万相生图和视频生成，没有可跳过</p>
+      </div>
+
+      <button class="btn btn--primary btn--full setup-card__btn" id="setupSaveBtn">开始使用</button>
+      <p class="setup-card__skip"><a href="#" id="setupSkipBtn">跳过，稍后在设置中配置</a></p>
+    </div>
+  </div>
+
+  <!-- ===================== Toast ===================== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/prompts.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="js/lighting_ball_3d.js"></script>
+  <script src="js/camera_view_ball.js"></script>
+  <script src="js/api_client.js"></script>
+  <script src="js/wan_api.js"></script>
+  <script src="js/prompt_agent.js"></script>
+  <script src="js/image_store.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

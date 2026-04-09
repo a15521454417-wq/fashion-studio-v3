@@ -1,0 +1,9 @@
+# 排除不需要上传的文件
+__pycache__/
+*.pyc
+proxy.py
+node_modules/
+.DS_Store
+*.log
+temp/
+downloaded_images/

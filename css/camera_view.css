@@ -1,0 +1,351 @@
+/* ===================== 相机视角设置 ===================== */
+.camera-view-workspace {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.camera-view-left {
+  flex-shrink: 0;
+}
+
+.camera-ball-container {
+  width: 180px;
+  height: 180px;
+  min-width: 180px;
+  min-height: 180px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a2030 0%, #0f1520 100%);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+  border: 1px solid rgba(100,120,150,0.3);
+  position: relative;
+  visibility: visible !important;
+  display: block !important;
+}
+
+.camera-ball-container canvas {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  cursor: grab;
+}
+
+.camera-ball-container canvas:active {
+  cursor: grabbing;
+}
+
+.camera-ball-hint {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 6px;
+}
+
+.camera-view-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.camera-param {
+  margin-bottom: 14px;
+}
+
+.camera-param__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.camera-param__label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.camera-param__value {
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 500;
+  min-width: 40px;
+  text-align: right;
+}
+
+.camera-slider {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.camera-slider__track {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.camera-slider__fill {
+  position: absolute;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  left: 0;
+  top: 0;
+}
+
+.camera-slider__thumb {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  cursor: grab;
+  transition: transform 0.1s;
+}
+
+.camera-slider__thumb:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.camera-slider__thumb:active {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(0.95);
+}
+
+/* 预设视角按钮 */
+.camera-presets {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.camera-preset-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 6px;
+  background: var(--bg-tertiary, #2a2a3a);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.7rem;
+  color: var(--text-secondary, #a0a0b0);
+  min-height: 56px;
+}
+
+.camera-preset-btn:hover {
+  background: var(--accent, #6366f1);
+  border-color: var(--accent, #6366f1);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.camera-preset-btn.active {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-color: #6366f1;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.camera-preset-btn .preset-icon {
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+/* 额外提示词 */
+.camera-extra-prompt {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+
+.camera-extra-prompt__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.camera-extra-prompt__input {
+  margin: 0;
+  font-size: 0.75rem;
+  background: var(--bg-tertiary);
+  border-color: var(--border);
+}
+
+.camera-extra-prompt__input:focus {
+  border-color: var(--accent);
+}
+
+/* Toggle Switch */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  transition: 0.3s;
+  border-radius: 20px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--text-muted);
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(16px);
+  background-color: var(--accent);
+}
+
+/* 景别按钮网格 */
+.camera-shot-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.camera-shot-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 6px;
+  background: var(--bg-tertiary, #2a2a3a);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.7rem;
+  color: var(--text-secondary, #a0a0b0);
+  min-height: 56px;
+  gap: 4px;
+}
+
+.camera-shot-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.camera-shot-btn.active {
+  background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.15) 100%);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.camera-shot-btn .shot-icon {
+  font-size: 1rem;
+}
+
+/* 当前视角预览 */
+.camera-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.camera-preview-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.camera-preview-text {
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+/* 预设按钮网格扩展 */
+.camera-presets {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+/* 自定义模式开关 */
+.camera-custom-toggle {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+
+.camera-custom-toggle__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.camera-custom-toggle__hint {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+  padding-left: 46px;
+}
+
+/* 三维球在自定义模式下的样式 */
+.camera-ball-container.custom-mode {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+.camera-ball-container.custom-mode canvas {
+  cursor: grab;
+}
