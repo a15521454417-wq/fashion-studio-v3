@@ -589,28 +589,14 @@ const API_CLIENT = (() => {
 
     onProgress?.({ status: 'processing', message: '正在抠图中...' });
 
-    const formData = new FormData();
-
-    if (imageBase64) {
-      // base64 方式：提取纯 base64 部分（去掉 data:image/xxx;base64, 前缀）
-      const pureBase64 = imageBase64.includes(',')
-        ? imageBase64.split(',')[1]
-        : imageBase64;
-      const byteCharacters = atob(pureBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/png' });
-      formData.append('image', blob, 'image.png');
-    } else {
-      formData.append('image_url', imageUrl);
-    }
+    const body = imageBase64
+      ? { image: imageBase64 }
+      : { image_url: imageUrl };
 
     const res = await fetch(REMOVE_BG_API, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
       signal
     });
 
