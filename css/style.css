@@ -230,6 +230,22 @@ body {
 }
 .btn--icon:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
+.btn--accent-outline {
+  background: transparent;
+  color: var(--accent-color);
+  border: 1px solid var(--accent-color);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.btn--accent-outline:hover {
+  background: var(--accent-color);
+  color: #fff;
+}
+
 .btn--generate {
   padding: 0 28px; height: 42px;
   font-size: .85rem; font-weight: 600;

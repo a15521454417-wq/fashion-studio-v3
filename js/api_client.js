@@ -648,6 +648,79 @@ const API_CLIENT = (() => {
     });
   }
 
+  // ===================== 批量生图（瀑布流用）=====================
+  async function generateImages({ prompt, count = 2, referenceImages = [], onProgress } = {}) {
+    const results = [];
+    const apiKey = getComflyAPIKey();
+
+    if (!apiKey) {
+      throw new Error('请先配置 API Key');
+    }
+
+    onProgress?.({ status: 'generating', current: 0, total: count });
+
+    // 如果有参考图，使用 imageToImage；否则使用 textToImage
+    if (referenceImages.length > 0) {
+      // 只用第一张参考图（简化处理）
+      const refBase64 = referenceImages[0].url.split(',')[1] || referenceImages[0].url;
+
+      // 批量生成
+      for (let i = 0; i < count; i++) {
+        onProgress?.({ status: 'generating', current: i + 1, total: count });
+
+        try {
+          const result = await imageToImage({
+            prompt: prompt,
+            imageBase64: refBase64,
+            provider: 'comfly',
+            aspect: '1:1',
+            quality: '1K',
+            signal: null
+          });
+
+          results.push(result[0]);
+        } catch (error) {
+          console.error(`第 ${i + 1} 张生成失败:`, error);
+          // 继续生成下一张
+        }
+      }
+    } else {
+      // 纯文本生图
+      for (let i = 0; i < count; i++) {
+        onProgress?.({ status: 'generating', current: i + 1, total: count });
+
+        try {
+          const result = await textToImage({
+            prompt: prompt,
+            count: 1,
+            provider: 'comfly',
+            aspect: '1:1',
+            quality: '1K',
+            signal: null
+          });
+
+          results.push(result[0]);
+        } catch (error) {
+          console.error(`第 ${i + 1} 张生成失败:`, error);
+          // 继续生成下一张
+        }
+      }
+    }
+
+    onProgress?.({ status: 'completed', results });
+
+    if (results.length === 0) {
+      throw new Error('所有图片生成失败');
+    }
+
+    return results;
+  }
+
+  // 获取 Comfly API Key（兼容处理）
+  function getComflyAPIKey() {
+    return config.apiKey || localStorage.getItem('fs_blooom_key') || localStorage.getItem('fs_api_key');
+  }
+
   // ===================== 设置 =====================
   function setConfig(newConfig) {
     // endpoint 保存到 localStorage
@@ -708,7 +781,10 @@ const API_CLIENT = (() => {
     hasKey,
 
     // 智能抠图（通过线上 Serverless 代理）
-    removeBackground
+    removeBackground,
+
+    // 批量生图（瀑布流用）
+    generateImages
   };
 })();
 

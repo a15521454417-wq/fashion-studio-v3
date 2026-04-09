@@ -2815,6 +2815,14 @@ ${cameraSnippet}
     $('btnHistory')?.addEventListener('click', () => { $('historyPanel')?.classList.add('open'); $('historyOverlay')?.classList.add('open'); renderHistory(); });
     $('closeHistory')?.addEventListener('click', closeHistoryPanel);
     $('historyOverlay')?.addEventListener('click', closeHistoryPanel);
+    // 瀑布流按钮
+    $('btnWaterfall')?.addEventListener('click', () => {
+      if (window.waterfallView) {
+        waterfallView.show();
+      } else {
+        showToast('瀑布流模块加载中，请稍后重试', 'warning');
+      }
+    });
     $('clearHistory')?.addEventListener('click', () => {
       localStorage.removeItem(HISTORY_KEY);
       // 同时清空 IndexedDB
