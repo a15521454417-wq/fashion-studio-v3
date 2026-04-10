@@ -463,6 +463,13 @@
   <!-- ===================== Toast ===================== -->
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- 加载状态 -->
+  <div class="loading-state hidden" id="loadingState">
+    <div class="loading-spinner"></div>
+    <p class="loading-state__text" id="loadingText">正在生成，请稍候...</p>
+    <p class="loading-state__sub" id="loadingSub">预计 10-30 秒</p>
+  </div>
+
   <script src="js/prompts.js"></script>
   <script src="js/db.js"></script>
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js" onerror="console.error('[FS] ❌ three.js load failed')"></script>
