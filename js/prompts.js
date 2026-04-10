@@ -425,3 +425,24 @@ const MULTIANGLE_PRESETS = {
 window.LIGHTING_PRESETS = LIGHTING_PRESETS;
 window.GRID_PRESETS = GRID_PRESETS;
 window.MULTIANGLE_PRESETS = MULTIANGLE_PRESETS;
+
+// ============================================================
+// 10. 风格预设（对话流快捷后缀）
+// ============================================================
+const STYLE_PRESETS = {
+  magazine:   { name: '杂志大片', icon: '📸', suffix: ', high fashion editorial, magazine cover quality, professional photography, dramatic lighting, sharp focus, 8K resolution' },
+  street:     { name: '街拍', icon: '🏙️', suffix: ', street style photography, urban fashion, candid shot, natural lighting, city background, lifestyle vibe' },
+  minimal:    { name: '极简', icon: '⬜', suffix: ', minimalist aesthetic, clean composition, neutral colors, ample negative space, refined elegance, modern simplicity' },
+  vintage:    { name: '复古', icon: '🎞️', suffix: ', vintage film photography, warm color grading, film grain texture, retro fashion, nostalgic mood, analog aesthetic' },
+  dark:       { name: '暗黑', icon: '🖤', suffix: ', dark moody aesthetic, dramatic shadows, low key lighting, mysterious atmosphere, avant-garde fashion, gothic undertones' },
+  dreamy:     { name: '梦幻', icon: '✨', suffix: ', dreamy ethereal aesthetic, soft pastel tones, fantasy atmosphere, magical lighting, bokeh background, romantic mood' },
+  cinematic:  { name: '电影感', icon: '🎬', suffix: ', cinematic wide shot, movie scene quality, anamorphic lens look, film color grading, narrative atmosphere, dramatic composition' },
+  studio:     { name: '棚拍', icon: '💡', suffix: ', professional studio photography, seamless white or gray backdrop, even lighting, commercial e-commerce quality, product catalog standard' },
+  nature:     { name: '自然光', icon: '🌿', suffix: ', natural daylight photography, golden hour glow, outdoor setting, organic feel, soft shadows, authentic colors' },
+  luxury:     { name: '奢华', icon: '👑', suffix: ', luxury brand campaign, opulent setting, rich textures (silk/velvet/gold), regal posing, haute couture aesthetic, premium feel' },
+  cyber:      { name: '赛博', icon: '🌆', suffix: ', cyberpunk aesthetic, neon lighting (pink/cyan/blue), futuristic cityscape, edgy fashion, high contrast, digital art influence' },
+  cozy:       { name: '温馨', icon: '☕', suffix: ', cozy intimate atmosphere, warm soft lighting, home interior setting, comfortable styling, gentle color palette, lifestyle photography' }
+};
+
+// 全局导出
+window.STYLE_PRESETS = STYLE_PRESETS;

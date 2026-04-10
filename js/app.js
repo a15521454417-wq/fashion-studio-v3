@@ -1,6 +1,6 @@
 /**
  * FashionStudio — 主逻辑
- * v3: 全屏画布 + 底部控制台布局
+ * v4: 瀑布流对话 × 专业生图工作站（Nimb Style）
  */
 
 (function () {
@@ -30,8 +30,33 @@
     }
   };
 
+  // ====== 对话流状态 ======
+  let session = null;       // 当前 FSDB 会话
+  let agentOn = false;       // Agent 开关
+  let busy = false;          // 是否正在生成
+  let isNearBottom = true;   // 滚动位置
+  let selectedStyle = null;  // 当前风格预设
+  let lbImages = [];         // Lightbox 图片列表
+  let lbIndex = 0;           // Lightbox 当前索引
+
   const $ = id => document.getElementById(id);
   const $$ = sel => document.querySelectorAll(sel);
+
+  // ====== 对话流 DOM 引用 ======
+  const chatContainer = $('chatContainer');
+  const scrollBtn     = $('scrollBottomBtn');
+  const btnNewSession = $('btnNewSession');
+  const agentToggle   = $('agentToggle');
+  const agentSwitch   = $('agentSwitch');
+  // Lightbox 增强
+  const lightboxClose  = $('lightboxClose');
+  const lightboxPrev   = $('lightboxPrev');
+  const lightboxNext   = $('lightboxNext');
+  const lightboxImg    = $('lightboxImg');
+  const lightboxInfo   = $('lightboxInfo');
+  // 信息面板
+  const imgInfoPanel   = $('imgInfoPanel');
+  const imgInfoBody    = $('imgInfoBody');
 
   // ===================== 工具函数 =====================
   function fileToBase64(file) {
@@ -242,33 +267,582 @@
 
   // ===================== 初始化 =====================
   function init() {
-    bindTabNav();
-    bindPrompt();
-    bindModelSelector();
-    bindAspectSelector();
-    bindQualitySelector();
-    bindGenerate();
-    bindResults();
-    bindHistory();
-    bindSettings();
-    bindUpload();
-    bindLightbox();
-    bindKeyboard();
-    bindControlDock();
-    bindTaskPanel();
-    bindAgentPanel();
-    bindSetupWizard();    // 首次启动引导
-    loadTemplates();
-    loadSettings();
-    checkApiStatus();
-    switchTab('creative');
-    // IndexedDB 初始化：刷新后恢复上次生成结果
-    if (ImageStore.isAvailable()) {
-      ImageStore.openDB().then(() => restoreLastSession()).catch(() => {});
+    console.log('[FS-Init] 开始初始化...');
+    try {
+      bindTabNav();          console.log('[FS-Init] ✅ bindTabNav');
+      bindPrompt();          console.log('[FS-Init] ✅ bindPrompt');
+      bindModelSelector();   console.log('[FS-Init] ✅ bindModelSelector');
+      bindAspectSelector();  console.log('[FS-Init] ✅ bindAspectSelector');
+      bindQualitySelector();  console.log('[FS-Init] ✅ bindQualitySelector');
+      bindGenerate();        console.log('[FS-Init] ✅ bindGenerate');
+      bindResults();         console.log('[FS-Init] ✅ bindResults');
+      bindHistory();         console.log('[FS-Init] ✅ bindHistory');
+      bindSettings();        console.log('[FS-Init] ✅ bindSettings');
+      bindUpload();          console.log('[FS-Init] ✅ bindUpload');
+      bindLightbox();        console.log('[FS-Init] ✅ bindLightbox');
+      bindKeyboard();        console.log('[FS-Init] ✅ bindKeyboard');
+      bindControlDock();     console.log('[FS-Init] ✅ bindControlDock');
+      bindTaskPanel();       console.log('[FS-Init] ✅ bindTaskPanel');
+      bindAgentPanel();      console.log('[FS-Init] ✅ bindAgentPanel');
+      bindSetupWizard();     console.log('[FS-Init] ✅ bindSetupWizard');
+      loadTemplates();       console.log('[FS-Init] ✅ loadTemplates');
+      loadSettings();        console.log('[FS-Init] ✅ loadSettings');
+      checkApiStatus();      console.log('[FS-Init] ✅ checkApiStatus');
+
+      switchTab('creative');   console.log('[FS-Init] ✅ switchTab(creative)');
+
+      // IndexedDB 初始化：刷新后恢复上次生成结果
+      if (ImageStore.isAvailable()) {
+        ImageStore.openDB().then(() => restoreLastSession()).catch((e) => { console.warn('[FS-Init] ⚠️ restoreLastSession:', e); });
+      }
+      console.log('[FS-Init] ✅ ImageStore check done');
+
+      // ====== 对话流初始化 ======
+      initChatFlow();
+      console.log('[FS-Init] ✅ initChatFlow — 全部初始化完成！');
+    } catch(e) {
+      console.error('[FS-Init] ❌ 初始化崩溃！', e);
+      alert('FashionStudio 初始化失败：' + e.message + '\n位置：' + e.stack?.split('\n')[1]?.trim());
     }
   }
 
-  // ===================== 首次启动引导 =====================
+  // ===================== 对话流系统 =====================
+  function initChatFlow() {
+    // Agent 开关
+    agentToggle.onchange = () => {
+      agentOn = agentToggle.checked;
+      agentSwitch.classList.toggle('active', agentOn);
+      showToast(agentOn ? '🤖 Agent 已开启' : 'Agent 已关闭', 'success');
+    };
+
+    // 新建会话
+    btnNewSession.onclick = newSession;
+
+    // 滚动监听
+    $('canvasArea').addEventListener('scroll', onScroll, { passive: true });
+    scrollBtn.onclick = () => { $('canvasArea').scrollTo({ top: $('canvasArea').scrollHeight, behavior: 'smooth' }); };
+
+    // Lightbox 增强事件绑定
+    bindEnhancedLightbox();
+
+    // 信息面板绑定
+    $('closeImgInfo')?.addEventListener('click', () => imgInfoPanel.classList.remove('open'));
+
+    // 风格预设渲染
+    renderStylePresets();
+
+    // 恢复会话（异步）
+    FSDB.ready.then(() => restoreSession());
+  }
+
+  /* ====== 滚动管理 ====== */
+  function onScroll() {
+    const el = $('canvasArea');
+    const threshold = 120;
+    isNearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < threshold;
+    scrollBtn.classList.toggle('visible', !isNearBottom && el.scrollHeight > el.clientHeight + 200);
+    if (isNearBottom) scrollBtn.classList.remove('visible');
+  }
+  function scrollToBottom(behavior = 'smooth') {
+    $('canvasArea').scrollTo({ top: $('canvasArea').scrollHeight, behavior });
+  }
+
+  /* ====== 会话管理 ====== */
+  async function restoreSession() {
+    const sessions = await FSDB.getSessions();
+    if (sessions.length) {
+      session = sessions[0];
+      const messages = await FSDB.getMessages(session.id);
+      renderAllMessages(messages);
+    } else {
+      session = await FSDB.createSession('新会话');
+    }
+  }
+
+  async function newSession() {
+    session = await FSDB.createSession('新会话');
+    chatContainer.innerHTML = '';
+    appendEmptyState();
+    S.results = [];
+    showToast('新建会话', 'success');
+  }
+
+  function renderAllMessages(messages) {
+    chatContainer.innerHTML = '';
+    if (!messages || messages.length === 0) { appendEmptyState(); return; }
+    messages.forEach(m => appendMsgEl(m));
+  }
+
+  function toggleEmpty() {
+    const hasMsgs = !!chatContainer.querySelector('.msg');
+    const emptyEl = chatContainer.querySelector('#emptyState');
+    if (emptyEl) emptyEl.style.display = hasMsgs ? 'none' : '';
+  }
+
+  /* ====== 消息渲染 ====== */
+  async function appendMsgEl(msg) {
+    // 隐藏空状态
+    const emptyEl = chatContainer.querySelector('#emptyState');
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    const el = document.createElement('div');
+
+    if (msg.role === 'user') {
+      el.className = 'msg msg--user';
+      el.dataset.msgId = msg.id;
+      el.innerHTML = `
+        <div class="user-bubble">${escHtml(msg.content)}</div>
+        <div class="msg-meta">${formatTime(msg.timestamp)}</div>`;
+    } else {
+      // AI 消息
+      const imgCount = (msg.images || []).length;
+      let gridClass = 'img-grid cols-2';
+      if (imgCount === 1) gridClass = 'img-grid cols-1';
+      else if (imgCount === 3) gridClass = 'img-grid cols-3';
+      else if (imgCount >= 4) gridClass = 'img-grid cols-4';
+
+      el.className = 'msg msg--ai';
+      el.dataset.msgId = msg.id;
+
+      let cardsHtml = '';
+      if (msg.images && msg.images.length > 0) {
+        cardsHtml = `<div class="${gridClass}">`;
+        msg.images.forEach((img, i) => {
+          const src = img._thumbUrl || img.url || '';
+          cardsHtml += buildImgCardHtml(img, i, msg.content || '', msg.id);
+        });
+        cardsHtml += `</div>`;
+      }
+
+      el.innerHTML = `
+        <div class="ai-header">
+          <div class="ai-avatar">AI</div>
+          <span>FashionStudio</span>
+          ${msg.agentOptimized ? '<span class="ai-thinking"><span class="dot-pulse"></span> Agent 优化</span>' : ''}
+        </div>
+        ${cardsHtml}
+        ${!cardsHtml ? `<div class="ai-thinking"><span class="dot-pulse"></span> 处理中...</div>` : ''}
+        <div class="msg-meta">${formatTime(msg.timestamp)} · ${S.tabLabel || '创意生图'}</div>`;
+
+      // 绑定卡片事件
+      bindCardEvents(el);
+    }
+
+    chatContainer.appendChild(el);
+
+    // 自动滚动
+    requestAnimationFrame(() => { scrollToBottom(); });
+  }
+
+  function buildImgCardHtml(img, index, prompt, msgId) {
+    return `
+      <div class="img-card" data-img="${img.id}" data-msg-id="${msgId}" data-index="${index}">
+        <img src="${img.url || ''}" alt="生成结果${index + 1}" loading="lazy" data-aspect="${img.aspectRatio || ''}"
+             onerror="this.style.background='var(--bg-secondary)'" />
+        <div class="img-card-footer">
+          <p class="img-card-prompt">${escHtml(img.revised_prompt || prompt).slice(0, 80)}…</p>
+          <div class="img-card-actions">
+            <button class="img-action img-action--copy" title="复制提示词" data-act="copy">📋</button>
+            <button class="img-action img-action--regen" title="重新生成" data-act="regen">🔄</button>
+            <button class="img-action img-action--info" title="详细信息" data-act="info">ℹ️</button>
+            <button class="img-action" title="下载" data-act="download">⬇</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function bindCardEvents(msgEl) {
+    // 图片点击 → Lightbox
+    msgEl.querySelectorAll('.img-card').forEach(card => {
+      card.querySelector('.img-card img')?.addEventListener('click', () => openLightboxFromCard(card));
+      // 操作按钮
+      card.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          handleCardAction(btn.dataset.act, card);
+        });
+      });
+    });
+  }
+
+  function handleCardAction(action, card) {
+    switch (action) {
+      case 'copy': copyPromptFromCard(card); break;
+      case 'regen': regenerateFromCard(card); break;
+      case 'info': showInfoFromCard(card); break;
+      case 'download': downloadFromCard(card); break;
+    }
+  }
+
+  /* ====== 发送（核心改造） ====== */
+  window.chatSend = async function chatSend() {
+    var dbg = document.getElementById('fsDebugBadge');
+    try {
+      console.log('[FS-Chat] chatSend called, busy:', busy);
+      if (dbg) dbg.textContent = 'chat: start';
+      
+      if (busy) { console.warn('[FS-Chat] 忽略：正在生成中'); if (dbg) dbg.textContent = '→ busy!'; return; }
+      const text = $('promptInput')?.value.trim();
+      if (!text && S.tab !== 'cutout' && S.tab !== 'wan-video') {
+        showToast('请输入描述', 'warning'); if (dbg) dbg.textContent = '→ empty!'; return;
+      }
+
+      // API Key 检查
+      const isWanTab = S.tab === 'wan-image' || S.tab === 'wan-video';
+      if (isWanTab) {
+        if (!WAN_API.hasKey()) { showToast('请先填写万相 API Key', 'error'); $('settingsModal').classList.remove('hidden'); return; }
+      } else {
+        if (!API_CLIENT.hasKey()) { showToast('请先配置 API Key', 'error'); $('settingsModal').classList.remove('hidden'); if (dbg) dbg.textContent = '→ NO KEY!'; return; }
+      }
+
+      busy = true;
+      
+      // ★ Session 守卫：如果 restoreSession 还没完成，先创建一个
+      if (!session) {
+        console.log('[FS-Chat] session 为空，立即创建新会话');
+        session = await FSDB.createSession('新会话');
+      }
+      if (dbg) dbg.textContent = '→ inserting user msg...';
+
+      // 1. 插入用户消息
+      const userMsg = await FSDB.addMessage({
+        role: 'user',
+        content: text,
+        sessionId: session.id,
+        refImages: S.refImages.main || []
+      });
+      appendMsgEl(userMsg);
+
+      // 清空输入
+      $('promptInput').value = '';
+
+      if (dbg) dbg.textContent = '→ agent check...';
+      // 2. Agent 优化提示词（如果开启）
+      let finalPrompt = text;
+      let agentOptimized = false;
+      if (agentOn && !isWanTab) {
+        try {
+          showThinkingBubble();
+          finalPrompt = await PromptAgent.optimize(text);
+          agentOptimized = (finalPrompt !== text);
+        } catch(e) { console.warn('[Agent] 优化失败:', e); }
+        removeThinkingBubble();
+      }
+
+      if (dbg) dbg.textContent = '→ style + loading...';
+      // 3. 应用风格预设
+      if (selectedStyle && STYLE_PRESETS[selectedStyle]) {
+        finalPrompt = finalPrompt + ' ' + STYLE_PRESETS[selectedStyle].suffix;
+      }
+
+      // 4. 插入 AI 加载消息
+      const aiLoadingId = 'loading_' + Date.now();
+      const loadingEl = document.createElement('div');
+      loadingEl.className = 'msg msg--ai';
+      loadingEl.id = aiLoadingId;
+      loadingEl.innerHTML = `
+        <div class="ai-header"><div class="ai-avatar">AI</div><span>FashionStudio</span></div>
+        <div style="padding:10px;"><div class="loading-skeleton"><span class="skeleton-text">正在生成，请稍候...</span></div></div>`;
+      chatContainer.appendChild(loadingEl);
+      scrollToBottom();
+
+      if (dbg) dbg.textContent = '→ calling API...';
+      // 5. 调用原有 generate 核心逻辑获取结果
+      const results = await doGenerateForChat(finalPrompt, isWanTab);
+
+      if (dbg) dbg.textContent = '→ saving results...';
+      // 6. 移除加载消息，替换为真实结果
+      const aiMsgImages = results.map(r => ({
+        id: r.id || generateImgId(),
+        url: r.url || (r.isBase64 && r.b64_json ? ('data:image/png;base64,' + r.b64_json) : ''),
+        revised_prompt: r.revised_prompt || finalPrompt,
+        aspectRatio: S.aspect !== 'auto' ? S.aspect : ''
+      }));
+
+      const aiMsg = await FSDB.addMessage({
+        role: 'assistant',
+        content: finalPrompt,
+        images: aiMsgImages,
+        sessionId: session.id,
+        tab: S.tab,
+        agentOptimized,
+        originalPrompt: text
+      });
+
+      // 移除加载元素
+      loadingEl.remove();
+      // 插入真实 AI 消息
+      appendMsgEl(aiMsg);
+
+      // 7. 存入 ImageStore（兼容原有历史）
+      S.results = results;
+      saveToHistory({ tab: S.tab, prompt: finalPrompt, results, aspect: S.aspect, quality: S.quality, model: S.model });
+      persistResults(results, finalPrompt, S.tab);
+
+      showToast('生成完成 🎉', 'success');
+      if (dbg) dbg.textContent = '✅ DONE!';
+    } catch(e) {
+      console.error('[FS-Chat] ❌ 崩溃！', e);
+      if (dbg) dbg.textContent = '❌ ERR:' + e.message;
+      alert('⛔ chatSend 崩溃：\n' + e.message + '\n\n位置：' + (e.stack||'').split('\n')[1]?.trim());
+    } finally { busy = false; }
+  };
+
+  /* ====== 对话流专用的生成函数（复用原有逻辑但返回结果） ====== */
+  async function doGenerateForChat(prompt, isWanTab) {
+    const refs = S.refImages.main || [];
+    const faceRef = S.refImages.face || null;
+    const isAuto = S.aspect === 'auto';
+    let results = [];
+
+    // Wan 图像 Tab
+    if (S.tab === 'wan-image') {
+      const negPrompt = $('wanNegPrompt')?.value.trim() || '';
+      const sizeBtn = document.querySelector('#wanImageSizeSelector .seg-btn.active');
+      const size = sizeBtn?.dataset.size || '1024*1024';
+      results = await WAN_API.textToImage({
+        prompt, negativePrompt: negPrompt, model: S.wan.imageModel,
+        size, n: S.wan.imageN, thinkingMode: S.wan.thinkingMode,
+        refImages: refs, refPrompt: prompt
+      });
+      return Array.isArray(results) ? results : [results];
+    }
+
+    // Wan 视频 Tab
+    if (S.tab === 'wan-video') { /* 视频走原逻辑 */ return []; }
+
+    // BLOOOOM 系列
+    const { dataUrl: compositeMain, width: compositeW, height: compositeH } =
+      refs.length > 0 ? await compositeImages(refs, isAuto) : { dataUrl: null, width: 0, height: 0 };
+    const editAspect = isAuto ? _dimsToAspect(compositeW, compositeH) : S.aspect;
+
+    // 简化版 switch（核心 tab）
+    switch (S.tab) {
+      case 'creative':
+        if (refs.length > 0)
+          results = await API_CLIENT.imageEdit({ prompt, imageBase64: compositeMain, provider: S.model, aspect: editAspect, quality: S.quality });
+        else
+          results = await API_CLIENT.textToImage({ prompt, provider: S.model, count: S.count, aspect: S.aspect, quality: S.quality });
+        break;
+      case 'wearables':
+      case 'model':
+      case 'retouch':
+      case 'background':
+      case 'edit':
+        if (!compositeMain) throw new Error('请上传参考图');
+        results = await API_CLIENT.imageEdit({ prompt, imageBase64: compositeMain, provider: S.model, aspect: editAspect, quality: S.quality });
+        break;
+      default:
+        results = await API_CLIENT.textToImage({ prompt, provider: S.model, count: S.count, aspect: S.aspect, quality: S.quality });
+    }
+
+    return Array.isArray(results) ? results : [results];
+  }
+
+  /* ====== 思考气泡 ====== */
+  function showThinkingBubble() {
+    removeThinkingBubble();
+    const el = document.createElement('div');
+    el.id = 'thinkingBubble';
+    el.className = 'msg msg--ai';
+    el.innerHTML = `<div class="ai-header"><div class="ai-avatar">AI</div><span>Agent 思考中...</span></div>
+      <div class="ai-thinking"><span class="dot-pulse"></span> 正在优化你的提示词...</div>`;
+    chatContainer.appendChild(el);
+    scrollToBottom();
+  }
+  function removeThinkingBubble() { $('thinkingBubble')?.remove(); }
+
+  /* ====== 增强版 Lightbox ====== */
+  function bindEnhancedLightbox() {
+    lightboxClose.onclick = closeLightbox;
+    lightboxPrev.onclick = () => navigateLightbox(-1);
+    lightboxNext.onclick = () => navigateLightbox(1);
+    $('lightbox').onclick = e => { if (e.target === $('lightbox')) closeLightbox(); };
+    $('lbDownload').onclick   = downloadLightboxImage;
+    $('lbCopyPrompt').onclick = copyLightboxPrompt;
+    $('lbRegen').onclick     = regenerateFromLightbox;
+    document.addEventListener('keydown', onKeydownChat);
+  }
+
+  function openLightboxFromCard(card) {
+    // 收集当前消息中的所有图片
+    const parentMsg = card.closest('.msg--ai');
+    if (!parentMsg) return;
+    const allCards = parentMsg.querySelectorAll('.img-card');
+    lbImages = [];
+    allCards.forEach((c, i) => {
+      const imgEl = c.querySelector('.img-card img');
+      lbImages.push({
+        url: imgEl?.src || '',
+        id: c.dataset.img,
+        msgId: c.dataset.msgId,
+        index: parseInt(c.dataset.index) || 0,
+        prompt: c.querySelector('.img-card-prompt')?.textContent || ''
+      });
+    });
+    lbIndex = parseInt(card.dataset.index) || 0;
+    updateLightboxImage();
+    $('lightbox').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    $('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+    lbImages = [];
+  }
+
+  function navigateLightbox(dir) {
+    lbIndex += dir;
+    if (lbIndex < 0) lbIndex = lbImages.length - 1;
+    if (lbIndex >= lbImages.length) lbIndex = 0;
+    updateLightboxImage();
+  }
+
+  function updateLightboxImage() {
+    const img = lbImages[lbIndex];
+    if (!img) return;
+    lightboxImg.src = img.url;
+    lightboxInfo.textContent = `${lbIndex + 1} / ${lbImages.length} · ${img.prompt.slice(0, 60)}`;
+  }
+
+  function onKeydownChat(e) {
+    if (!$('lightbox').classList.contains('open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') navigateLightbox(-1);
+    if (e.key === 'ArrowRight') navigateLightbox(1);
+  }
+
+  function downloadLightboxImage() {
+    const img = lbImages[lbIndex]; if (!img) return;
+    downloadImage(img.url, `fashion_${Date.now()}.png`);
+  }
+
+  function copyLightboxPrompt() {
+    const img = lbImages[lbIndex]; if (!img) return;
+    navigator.clipboard.writeText(img.prompt).then(() => showToast('✅ 提示词已复制', 'success'));
+  }
+
+  async function regenerateFromLightbox() {
+    const img = lbImages[lbIndex]; if (!img || busy) return;
+    closeLightbox();
+    const card = document.querySelector(`[data-img="${img.id}"]`);
+    if (card) regenerateFromCard(card);
+  }
+
+  /* ====== 卡片操作函数 ====== */
+  function copyPromptFromCard(card) {
+    const txt = card.querySelector('.img-card-prompt')?.textContent || '';
+    navigator.clipboard.writeText(txt).then(() => showToast('✅ 已复制', 'success'));
+  }
+
+  function downloadFromCard(card) {
+    const imgEl = card.querySelector('.img-card img');
+    if (imgEl) downloadImage(imgEl.src, `fashion_${Date.now()}.png`);
+  }
+
+  function regenerateFromCard(card) {
+    if (busy) return;
+    const prompt = card.querySelector('.img-card-prompt')?.textContent || '';
+    const oldImgId = card.dataset.img;
+    const msgId = card.dataset.msgId;
+    // 用原 prompt 重新生成
+    busy = true;
+    card.innerHTML = '<div class="loading-skeleton"><span class="skeleton-text">重新生成中...</span></div>';
+    doGenerateForChat(prompt, false).then(results => {
+      if (results.length > 0) {
+        buildAndReplaceCard(card, results[0], prompt);
+      }
+      busy = false;
+    }).catch(e => {
+      showToast('重新生成失败：' + e.message, 'error'); busy = false;
+    });
+  }
+
+  function buildAndReplaceCard(card, newData, prompt) {
+    const newImg = { id: generateImgId(), url: newData.url || '', revised_prompt: prompt, aspectRatio: '' };
+    card.outerHTML = buildImgCardHtml(newImg, 0, prompt, card.dataset.msgId || '');
+    // 重绑父级事件
+    bindCardEvents(card.parentElement?.closest('.msg--ai') || card.parentElement);
+  }
+
+  function showInfoFromCard(card) {
+    const prompt = card.querySelector('.img-card-prompt')?.textContent || '';
+    imgInfoBody.innerHTML = `
+      <div class="img-info-row"><div class="img-info-label">完整提示词</div><div class="img-info-prompt">${escHtml(prompt)}</div></div>
+      <div class="img-info-row"><div class="img-info-label">模式</div><div class="img-info-value">${S.tabLabel || '创意生图'}</div></div>
+      <div class="img-info-row"><div class="img-info-label">模型</div><div class="img-info-value">${S.model === 'flash' ? 'BLOOOOM Flash' : 'BLOOOOM Pro'}</div></div>
+      <div class="img-info-row"><div class="img-info-label">质量</div><div class="img-info-value">${S.quality}</div></div>
+      <div class="img-info-row"><div class="img-info-label">Agent优化</div><div class="img-info-value">${agentOn ? '✅ 是' : '❌ 否'}</div></div>
+      ${selectedStyle ? `<div class="img-info-row"><div class="img-info-label">风格预设</div><div class="img-info-value">${STYLE_PRESETS[selectedStyle]?.icon} ${STYLE_PRESETS[selectedStyle]?.name}</div></div>` : ''}`;
+    imgInfoPanel.classList.add('open');
+  }
+
+  /* ====== 工具函数 ====== */
+  function appendEmptyState() {
+    chatContainer.innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state__icon">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <h3 class="empty-state__title">准备就绪</h3>
+        <p class="empty-state__text">在底部输入描述，选择参数后点击生成</p>
+        <div class="empty-state__tips">
+          <p>💡 <strong>小技巧：</strong>描述越具体效果越好 · 点击顶栏功能Tab可切换模式 · Agent 开关可自动优化提示词</p>
+        </div>
+      </div>`;
+  }
+
+  function escHtml(s) {
+    if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function formatTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function generateImgId() {
+    return 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 8);
+  }
+
+  // 全局暴露（供 HTML 内联调用）
+  window.regenerateSingleFromMsg = function(id, oldImgId) {
+    const card = document.querySelector(`[data-img="${oldImgId}"]`);
+    if (card) regenerateFromCard(card);
+  };
+  window.copyImgPrompt = function(text) {
+    navigator.clipboard.writeText(text).then(() => showToast('✅ 已复制', 'success'));
+  };
+
+  /* ====== 风格预设 ====== */
+  function renderStylePresets() {
+    const container = $('stylePresets');
+    if (!container || !window.STYLE_PRESETS) return;
+    container.innerHTML = '';
+    Object.entries(STYLE_PRESETS).forEach(([key, preset]) => {
+      const btn = document.createElement('button');
+      btn.className = 'style-preset';
+      btn.dataset.style = key;
+      btn.innerHTML = `<span>${preset.icon}</span><span>${preset.name}</span>`;
+      btn.onclick = () => toggleStyle(key);
+      container.appendChild(btn);
+    });
+  }
+
+  function toggleStyle(key) {
+    if (selectedStyle === key) {
+      selectedStyle = null;
+      $('stylePresets')?.querySelectorAll('.style-preset').forEach(b => b.classList.remove('active'));
+    } else {
+      selectedStyle = key;
+      $('stylePresets')?.querySelectorAll('.style-preset').forEach(b => {
+        b.classList.toggle('active', b.dataset.style === key);
+      });
+    }
+    showToast(selectedStyle ? `风格：${STYLE_PRESETS[selectedStyle]?.name}` : '风格已取消', 'success');
+  }
   function bindSetupWizard() {
     const overlay = $('setupOverlay');
     const saveBtn = $('setupSaveBtn');
@@ -330,9 +904,9 @@
       b.classList.toggle('active', b.dataset.tab === tab);
     });
 
-    // 更新信息面板
-    const info = TAB_INFO[tab] || TAB_INFO.creative;
-    $('infoContent').innerHTML = info.content;
+    // 信息面板（旧版元素可能不存在，安全访问）
+    const infoEl = $('infoContent');
+    if (infoEl) { /* infoContent 已弃用，保留 DOM 引用兼容 */ }
 
     // 更新参考图提示
     updateRefHint(tab);
@@ -365,7 +939,10 @@
 
     // 更新子面板标题
     const title = $('subPanelTitle');
-    if (title) title.textContent = info.title;
+    if (title) {
+      const TAB_TITLES = { creative:'创意生图', wearables:'万物穿戴', model:'模特修整', retouch:'智能修图', background:'背景生成', edit:'图片编辑', lighting:'光影重塑', cutout:'AI抠图', 'wan-image':'万相生图', 'wan-video':'万相视频', grid:'批量网格', multiangle:'多角度' };
+      title.textContent = TAB_TITLES[tab] || tab;
+    }
 
     // 重新渲染子面板内容（先渲染HTML）
     renderSubPanel(tab);
@@ -2279,8 +2856,36 @@ ${cameraSnippet}
     });
   }
 
-  // ===================== 生成逻辑 =====================
-  function bindGenerate() { $('btnGenerate')?.addEventListener('click', generate); }
+  // ===================== 生成逻辑（保留原有完整逻辑，同时支持对话流） =====================
+  function bindGenerate() {
+    const btn = $('btnGenerate');
+    console.log('[FS-Init] bindGenerate — btn:', btn ? '✅ found' : '❌ missing');
+    btn?.addEventListener('click', (e) => {
+      console.log('[FS-Gen] 🔘 按钮被点击！S.tab =', S.tab, 'busy =', busy);
+      e.preventDefault();
+      
+      // === 调试：立即显示视觉反馈 ===
+      var dbgBadge = document.getElementById('fsDebugBadge');
+      if (dbgBadge) dbgBadge.textContent = 'CLICKED! tab=' + S.tab + ' busy=' + busy;
+      
+      // 如果是对话模式 Tab，走对话流
+      const chatTabs = ['creative','wearables','model','retouch','background','edit','lighting'];
+      if (chatTabs.includes(S.tab)) {
+        console.log('[FS-Gen] → 调用 chatSend()...');
+        if (dbgBadge) dbgBadge.textContent = '→ chatSend...';
+        window.chatSend().then(() => { if (dbgBadge) dbgBadge.textContent = 'chatSend DONE'; }).catch(err => { if (dbgBadge) dbgBadge.textContent = 'ERR:' + err.message; });
+      } else {
+        // 非 Tab（如 cutout/wan）走原有逻辑
+        console.log('[FS-Gen] → 调用 generate()...');
+        if (dbgBadge) dbgBadge.textContent = '→ generate...';
+        generate();
+      }
+    });
+    // Ctrl+Enter / Cmd+Enter 也走对话流
+    $('promptInput')?.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); window.chatSend(); }
+    });
+  }
 
   async function generate() {
     const prompt = $('promptInput')?.value.trim();
@@ -2596,15 +3201,20 @@ ${cameraSnippet}
 
   // ===================== 加载/结果/下载 =====================
   function showLoading(on) {
-    $('loadingState')?.classList.toggle('hidden', !on);
-    $('results')?.classList.toggle('hidden', on);
-    $('emptyState')?.classList.toggle('hidden', !on);
-    $('infoPanel')?.classList.toggle('hidden', on);
+    // 安全访问：旧版元素在对话流模式下不存在
+    const loadingState = $('loadingState');
+    const resultsEl = $('results');
+    const emptyState = $('emptyState');
+    const infoPanel = $('infoPanel');
+    if (loadingState) loadingState.classList.toggle('hidden', !on);
+    if (resultsEl) resultsEl.classList.toggle('hidden', on);
+    if (emptyState) emptyState.classList.toggle('hidden', !on);
+    if (infoPanel) infoPanel.classList.toggle('hidden', on);
     const btn = $('btnGenerate'); if (btn) btn.disabled = on;
-    if (on) {
-      $('loadingText').textContent = '正在生成，请稍候...';
-      $('loadingSub').textContent = S.tab === 'wan-video' ? '预计 1-5 分钟' : '预计 10-30 秒';
-    }
+    const loadingText = $('loadingText');
+    const loadingSub = $('loadingSub');
+    if (loadingText && on) loadingText.textContent = '正在生成，请稍候...';
+    if (loadingSub && on) loadingSub.textContent = S.tab === 'wan-video' ? '预计 1-5 分钟' : '预计 10-30 秒';
   }
 
   function bindResults() {
@@ -2688,11 +3298,16 @@ ${cameraSnippet}
   }
 
   function showResults(results, prompt) {
-    $('emptyState')?.classList.add('hidden');
-    $('infoPanel')?.classList.add('hidden');
-    $('results')?.classList.remove('hidden');
+    const emptyState = $('emptyState');
+    const infoPanel = $('infoPanel');
+    const resultsEl = $('results');
+    if (emptyState) emptyState.classList.add('hidden');
+    if (infoPanel) infoPanel.classList.add('hidden');
+    if (resultsEl) resultsEl.classList.remove('hidden');
 
-    const grid = $('resultsGrid'); grid.innerHTML = '';
+    const grid = $('resultsGrid');
+    if (!grid) return; // 对话流模式下不存在 resultsGrid
+    grid.innerHTML = '';
     results.forEach((item, i) => {
       // 优先使用缩略图
       const imgSrc = item._thumbUrl || getImgSrc(item);
@@ -2741,11 +3356,16 @@ ${cameraSnippet}
 
   // ===================== 视频结果展示 =====================
   function showVideoResult(videoResult, prompt) {
-    $('emptyState')?.classList.add('hidden');
-    $('infoPanel')?.classList.add('hidden');
-    $('results')?.classList.remove('hidden');
+    const emptyState = $('emptyState');
+    const infoPanel = $('infoPanel');
+    const resultsEl = $('results');
+    if (emptyState) emptyState.classList.add('hidden');
+    if (infoPanel) infoPanel.classList.add('hidden');
+    if (resultsEl) resultsEl.classList.remove('hidden');
 
-    const grid = $('resultsGrid'); grid.innerHTML = '';
+    const grid = $('resultsGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
     const card = document.createElement('div'); card.className = 'result-card result-card--video';
     card.innerHTML = `
       <div class="result-card__video-wrap">
@@ -3289,7 +3909,7 @@ ${cameraSnippet}
         closeHistoryPanel();
         toggleSubPanel(false);
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); generate(); }
+      // Ctrl/Cmd + Enter 已由 bindGenerate 统一处理（chatSend），此处不再重复
     });
   }
 

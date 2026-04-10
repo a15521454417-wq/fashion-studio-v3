@@ -81,7 +81,21 @@
       </nav>
     </div>
 
+    <div class="topbar__center">
+      <button class="btn-new-session" id="btnNewSession" title="新建会话">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建会话
+      </button>
+    </div>
+
     <div class="topbar__right">
+      <!-- Agent 模式开关 -->
+      <label class="agent-switch" id="agentSwitch">
+        <input type="checkbox" id="agentToggle" />
+        <span class="switch-track"></span>
+        <span class="switch-label">🤖 Agent</span>
+      </label>
+      <span class="topbar__sep"></span>
       <span class="status-dot status-dot--online" id="apiStatus"></span>
       <span class="status-text" id="apiStatusText">就绪</span>
       <span class="topbar__sep"></span>
@@ -118,52 +132,29 @@
     <div class="task-panel__list" id="taskList"></div>
   </div>
 
-  <!-- ===================== 画布区（主视觉区） ===================== -->
+  <!-- ===================== 画布区（瀑布流对话） ===================== -->
   <main class="canvas-area" id="canvasArea">
 
-    <!-- 加载状态 -->
-    <div class="loading-state hidden" id="loadingState">
-      <div class="loading-spinner"></div>
-      <p class="loading-state__text" id="loadingText">正在生成，请稍候...</p>
-      <p class="loading-state__sub" id="loadingSub">预计 10-30 秒</p>
-    </div>
+    <!-- 滚动到底部按钮 -->
+    <button class="scroll-bottom-btn hidden" id="scrollBottomBtn" title="回到最新消息">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
 
-    <!-- 生成结果 -->
-    <div class="results hidden" id="results">
-      <div class="results__header">
-        <h3 class="results__title">生成结果</h3>
-        <div class="results__actions">
-          <button class="btn btn--ghost btn--sm" id="btnDownloadAll">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            全部下载
-          </button>
-          <button class="btn btn--ghost btn--sm" id="btnNewGenerate">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            再生成
-          </button>
+    <!-- 对话容器（核心改造） -->
+    <div class="chat-container" id="chatContainer">
+
+      <!-- 空状态 -->
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state__icon">
+          <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <h3 class="empty-state__title">准备就绪</h3>
+        <p class="empty-state__text">在底部输入描述，选择参数后点击生成</p>
+        <div class="empty-state__tips">
+          <p>💡 <strong>小技巧：</strong>描述越具体效果越好 · 点击顶栏功能Tab可切换模式 · Agent 开关可自动优化提示词</p>
         </div>
       </div>
-      <div class="results__grid" id="resultsGrid"></div>
-    </div>
 
-    <!-- 空状态 -->
-    <div class="empty-state" id="emptyState">
-      <div class="empty-state__icon">
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      </div>
-      <h3 class="empty-state__title">准备就绪</h3>
-      <p class="empty-state__text">在底部输入描述，选择参数后点击生成</p>
-      <div class="empty-state__tips">
-        <p>💡 <strong>小技巧：</strong>描述越具体效果越好 · 点击顶栏功能Tab可切换模式 · 点击「⚙」展开选项面板</p>
-      </div>
-    </div>
-
-    <!-- 功能说明 -->
-    <div class="info-panel" id="infoPanel">
-      <h4 class="info-panel__title">功能说明</h4>
-      <div class="info-panel__content" id="infoContent">
-        <p>选择顶栏功能后，这里会显示对应的预设提示词和使用说明。</p>
-      </div>
     </div>
 
   </main>
@@ -233,6 +224,12 @@
         </span>
         <span class="btn__text">生成</span>
       </button>
+    </div>
+
+    <!-- 风格预设行 -->
+    <div class="style-presets-wrap" id="stylePresetsWrap">
+      <span class="settings-label">风格</span>
+      <div class="style-presets" id="stylePresets"></div>
     </div>
 
     <!-- 参数行 -->
@@ -307,14 +304,29 @@
   </div>
   <div class="history-overlay" id="historyOverlay"></div>
 
-  <!-- ===================== 放大镜弹窗 ===================== -->
-  <div class="lightbox hidden" id="lightbox">
-    <button class="lightbox__close" id="closeLightbox" aria-label="关闭">×</button>
+  <!-- ===================== 增强版 Lightbox ===================== -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox__close" id="lightboxClose">&times;</button>
+    <div class="lightbox__nav lightbox__prev" id="lightboxPrev">&#10094;</div>
+    <div class="lightbox__nav lightbox__next" id="lightboxNext">&#10095;</div>
     <img class="lightbox__img" id="lightboxImg" src="" alt="预览" />
     <div class="lightbox__toolbar">
-      <button class="btn btn--ghost btn--sm" id="lbDownload">⬇ 下载</button>
-      <button class="btn btn--ghost btn--sm" id="lbCopy">📋 复制Prompt</button>
+      <span class="lightbox__info" id="lightboxInfo"></span>
+      <div class="lightbox__actions">
+        <button class="lb-btn" id="lbDownload">⬇ 下载</button>
+        <button class="lb-btn" id="lbCopyPrompt">📋 复制提示词</button>
+        <button class="lb-btn" id="lbRegen">🔄 重新生成</button>
+      </div>
     </div>
+  </div>
+
+  <!-- 图片信息面板（右侧滑出） -->
+  <div class="img-info-panel" id="imgInfoPanel">
+    <div class="img-info-header">
+      <h4>📋 图片信息</h4>
+      <button class="icn-btn-sm" id="closeImgInfo">&times;</button>
+    </div>
+    <div class="img-info-body" id="imgInfoBody"></div>
   </div>
 
   <!-- ===================== 设置弹窗 ===================== -->
@@ -437,13 +449,44 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script src="js/prompts.js"></script>
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="js/db.js"></script>
+  <!-- 调试：脚本加载追踪 -->
+  <script>console.log('[FS-Load] ✅ prompts.js + db.js loaded');</script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js" onerror="console.error('[FS-Load] ❌ three.js FAILED to load!')" onload="console.log('[FS-Load] ✅ three.js loaded')"></script>
   <script src="js/lighting_ball_3d.js"></script>
   <script src="js/camera_view_ball.js"></script>
+  <script>console.log('[FS-Load] ✅ 3D balls loaded');</script>
   <script src="js/api_client.js"></script>
   <script src="js/wan_api.js"></script>
+  <script>console.log('[FS-Load] ✅ API clients loaded');</script>
   <script src="js/prompt_agent.js"></script>
   <script src="js/image_store.js"></script>
+  <script>console.log('[FS-Load] ✅ agent + image_store loaded')</script>
   <script src="js/app.js"></script>
+  <!-- 最终调试：DOM 加载后检查 -->
+  <script>
+    window.addEventListener('load', () => {
+      console.log('=== FashionStudio 调试报告 ===');
+      console.log('btnGenerate:', document.getElementById('btnGenerate'));
+      console.log('promptInput:', document.getElementById('promptInput'));
+      console.log('chatContainer:', document.getElementById('chatContainer'));
+      console.log('setupOverlay hidden?', document.getElementById('setupOverlay')?.classList.contains('hidden'));
+      console.log('chatSend exists:', typeof window.chatSend);
+      console.log('FSDB exists:', typeof FSDB);
+      console.log('STYLE_PRESETS exists:', typeof STYLE_PRESETS);
+      console.log('=============================');
+      
+      // 在页面显示一个调试标记
+      var dbg = document.createElement('div');
+      dbg.id = 'fsDebugBadge';
+      dbg.style.cssText = 'position:fixed;bottom:4px;left:4px;z-index:99999;background:#222;color:#0f0;font-size:11px;padding:2px 6px;border-radius:3px;font-family:monospace;';
+      dbg.textContent = 'FS Debug Ready';
+      document.body.appendChild(dbg);
+    });
+    
+    window.addEventListener('error', function(e) {
+      console.error('[FS-Error]', e.message, '@', e.filename, ':', e.lineno);
+    });
+  </script>
 </body>
 </html>
