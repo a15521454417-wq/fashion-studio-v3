@@ -1,12 +1,15 @@
 /**
- * FashionStudio — API 调用封装 v3
- * 支持：BLOOOOM Gemini / Comfly Gemini / Midjourney
+ * FashionStudio — API 调用封装 v4
+ * 支持：BLOOOOM Gemini / Comfly Gemini / Midjourney / GRS AI Nano Banana
+ *
+ * v4 更新（2026-04-10）：
+ * + 新增 GRS AI Nano Banana 绘画接口（国内直连，流式响应）
+ *   端点：POST /v1/draw/nano-banana（grsai.dakka.com.cn）
+ *   模型：nano-banana-fast / nano-banana-2 / nano-banana-pro 等
+ *   支持：文本生图 + 参考图生图 + 流式进度 + 轮询
  *
  * v3 修复（2026-04-03）：
  * - BLOOOOM 改用 generateContent 端点，格式为 Google AI 原生
- *   { contents, generationConfig: { imageConfig: { aspectRatio, imageSize } } }
- * - aspectRatio 直接用 "1:1" / "3:4" 等比例字符串
- * - imageSize 用 "1K" / "2K" / "4K" 控制分辨率
  */
 
 const API_CLIENT = (() => {
@@ -28,7 +31,8 @@ const API_CLIENT = (() => {
 
   const ENDPOINTS = {
     t8star:  'https://ai.t8star.cn/v1',
-    comfly:  'https://api.comfly.chat/v1'
+    comfly:  'https://api.comfly.chat/v1',
+    grsai:   'https://grsai.dakka.com.cn'    // GRS AI（国内直连）
   };
   // BLOOOOM Edits 接口：ai.comfly.chat（支持 CORS）
   const BLOOOOM_EDITS_BASE = 'https://ai.comfly.chat/v1';
@@ -276,14 +280,23 @@ const API_CLIENT = (() => {
     return res.json();
   }
 
-  // ===================== 文本生图（BLOOOOM generateContent）=====================
-  // 使用 Google AI 原生格式，支持 aspectRatio + imageSize 精确控制
+  // ===================== 文本生图（BLOOOOM generateContent / GRS AI Nano Banana）=====================
   async function textToImage({ prompt, provider, count = 1, aspect = '1:1', quality = '1K', signal } = {}) {
     const p = provider || config.defaultModel;
 
     // Midjourney 走单独端点
     if (p === 'midjourney') {
       return midjourneyImagine({ prompt, count, signal });
+    }
+
+    // ★ GRS AI Nano Banana（国内直连）
+    if (p === 'grsai' || p === 'nano-banana' || config.endpoint === 'grsai') {
+      const results = [];
+      for (let i = 0; i < count; i++) {
+        const r = await nanoBananaText({ prompt, aspect, quality, signal });
+        results.push(...r);
+      }
+      return results;
     }
 
     const key = activeKey();
@@ -383,12 +396,16 @@ const API_CLIENT = (() => {
     throw new Error('返回数据格式异常');
   }
 
-  // ===================== 局部编辑（Edits）=====================
-  // 支持 nano-banana-2 或 gemini-3.1-flash-image-preview
-  // @param {string} editModel - 'nano' | 'flash'，默认 'nano'
-  // @param {string|string[]} imageBase64 - 单张 base64 或多张 base64 数组（多图时每张独立 append）
+  // ===================== 局部编辑（Edits / Nano Banana）=====================
   async function imageEdit({ prompt, imageBase64, maskBase64, provider, aspect = 'auto', quality = '1K', signal, onProgress, editModel = 'nano' } = {}) {
     if (!imageBase64) throw new Error('缺少原图');
+
+    // ★ GRS AI Nano Banana（国内直连）
+    const ep = config.endpoint || provider;
+    if (ep === 'grsai' || provider === 'grsai') {
+      const urls = Array.isArray(imageBase64) ? imageBase64 : [imageBase64];
+      return nanoBananaEdit({ prompt, urls, aspect, quality, signal, onProgress });
+    }
 
     // 选择 Edits 模型：nano-banana-2 或 gemini-3.1-flash-image-preview
     const model = BLOOOM_EDIT_MODELS[editModel] || BLOOOM_EDIT_MODELS.nano;
@@ -465,7 +482,214 @@ const API_CLIENT = (() => {
     throw new Error('返回数据格式异常');
   }
 
-  // ===================== Midjourney 专用 =====================
+  // ===================== GRS AI Nano Banana 绘图 =====================
+  // 国内直连，支持文本生图 + 参考图生图 + 流式响应
+
+  // GRS AI 基地址（国内直连优先）
+  const GRS_BASE = 'https://grsai.dakka.com.cn';
+
+  // Nano Banana 模型列表
+  const NANO_MODELS = {
+    'nano-banana-fast':      { label: 'Nano Fast',      quality: ['1K'],           speed: '⚡最快' },
+    'nano-banana':            { label: 'Nano',            quality: ['1K','2K'],       speed: '🚀快' },
+    'nano-banana-pro':        { label: 'Nano Pro',        quality: ['1K','2K'],       speed: '🎯均衡' },
+    'nano-banana-2':          { label: 'Nano 2',          quality: ['1K','2K'],       speed: '✨增强' },
+    'nano-banana-pro-vt':     { label: 'Pro VT',           quality: ['1K','2K'],       speed: '🖼️画质' },
+    'nano-banana-pro-cl':     { label: 'Pro CL',           quality: ['1K','2K'],       speed: '🎨创意' },
+    'nano-banana-pro-vip':    { label: 'Pro VIP',          quality: ['1K','2K'],       speed: '💎高级' },
+    'nano-banana-2-cl':       { label: 'Nano 2 CL',        quality: ['1K'],           speed: '🌟CL' },
+    'nano-banana-2-4k-cl':    { label: 'Nano 2 4K CL',     quality: ['4K'],           speed: '🔥4K' },
+    'nano-banana-pro-4k-vip': { label: 'Pro 4K VIP',       quality: ['4K'],           speed: '👑顶级' }
+  };
+
+  // 默认模型
+  let nanoModel = localStorage.getItem('fs_nano_model') || 'nano-banana-fast';
+
+  // 获取/设置 Nano Banana 模型
+  function getNanoModel() { return nanoModel; }
+  function setNanoModel(m) {
+    if (NANO_MODELS[m]) { nanoModel = m; localStorage.setItem('fs_nano_model', m); }
+  }
+
+  // 获取所有可用模型信息
+  function getNanoModels() { return NANO_MODELS; }
+
+  /**
+   * Nano Banana 文本生图（流式响应）
+   * POST /v1/draw/nano-banana
+   * @returns {Array<{url:string, revised_prompt?:string}>}
+   */
+  async function nanoBananaText({ prompt, aspect = 'auto', quality = '1K', signal, onProgress } = {}) {
+    const key = activeKey();
+    if (!key) throw new Error('API Key 未设置，请在设置中填写。');
+
+    const body = {
+      model: nanoModel,
+      prompt,
+      aspectRatio: aspect === 'auto' ? 'auto' : aspect,
+      imageSize: quality,
+      shutProgress: false  // 开启进度回复
+    };
+
+    onProgress?.({ status: 'submitting', message: '正在提交...' });
+
+    const res = await fetch(`${GRS_BASE}/v1/draw/nano-banana`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify(body),
+      signal
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: { message: `请求失败 (${res.status})` } }));
+      throw new Error(err.error?.message || err.msg || `请求失败 (${res.status})`);
+    }
+
+    // 流式响应：逐行读取 SSE
+    return parseStreamingResult(res, onProgress);
+  }
+
+  /**
+   * Nano Banana 参考图生图（支持 URLs 或 Base64）
+   * POST /v1/draw/nano-banana
+   * @param {string[]} urls - 图片 URL 数组或 Base64 数组
+   */
+  async function nanoBananaEdit({ prompt, urls = [], aspect = 'auto', quality = '1K', signal, onProgress } = {}) {
+    const key = activeKey();
+    if (!key) throw new Error('API Key 未设置，请在设置中填写。');
+    if (!urls || urls.length === 0) throw new Error('缺少参考图');
+
+    const body = {
+      model: nanoModel,
+      prompt,
+      aspectRatio: aspect === 'auto' ? 'auto' : aspect,
+      imageSize: quality,
+      urls: urls,
+      shutProgress: false
+    };
+
+    onProgress?.({ status: 'submitting', message: '提交参考图生成...' });
+
+    const res = await fetch(`${GRS_BASE}/v1/draw/nano-banana`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify(body),
+      signal
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: { message: `请求失败 (${res.status})` } }));
+      throw new Error(err.error?.message || err.msg || `请求失败 (${res.status})`);
+    }
+
+    return parseStreamingResult(res, onProgress);
+  }
+
+  /**
+   * 解析 Nano Banana 流式响应（SSE 格式）
+   * 返回值格式：{ id, results: [{url, content}], progress, status, failure_reason, error }
+   */
+  async function parseStreamingResult(res, onProgress) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // 保留不完整的行
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const data = JSON.parse(line);
+          
+          // 进度回调
+          if (data.progress !== undefined && onProgress) {
+            onProgress({ status: data.status || 'running', progress: data.progress, message: `生成中 ${data.progress}%` });
+          }
+
+          // 完成
+          if (data.status === 'succeeded' && data.results && data.results.length > 0) {
+            finalData = data;
+            break;
+          }
+
+          // 失败
+          if (data.status === 'failed' || data.status === 'error') {
+            throw new Error(data.failure_reason || data.error || '图片生成失败');
+          }
+        } catch (e) {
+          // 非 JSON 行，忽略
+          if (e.message.includes('JSON')) continue;
+          throw e;
+        }
+      }
+      if (finalData) break;
+    }
+
+    if (!finalData) {
+      // 尝试解析 buffer 中剩余内容
+      if (buffer.trim()) {
+        try { finalData = JSON.parse(buffer); } catch {}
+      }
+    }
+
+    if (!finalData || !finalData.results || finalData.results.length === 0) {
+      throw new Error('未收到生成结果');
+    }
+
+    onProgress?.({ status: 'succeeded', progress: 100 });
+
+    // 统一返回格式：[{ url, revised_prompt }]
+    return finalData.results.map(r => ({
+      url: r.url,
+      revised_prompt: r.content || ''
+    })).filter(r => r.url);
+  }
+
+  /**
+   * Nano Banana 结果轮询（webHook=-1 模式）
+   * POST /v1/draw/result
+   */
+  async function nanoBananaPoll(taskId, { interval = 3000, maxAttempts = 60, signal, onProgress } = {}) {
+    const key = activeKey();
+    for (let i = 0; i < maxAttempts; i++) {
+      if (signal?.aborted) throw new Error('已取消');
+
+      const res = await fetch(`${GRS_BASE}/v1/draw/result`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({ id: taskId }),
+        signal
+      });
+
+      if (!res.ok) throw new Error(`查询结果失败 (${res.status})`);
+      const json = await res.json();
+      const data = json.data || json;
+
+      onProgress?.({ status: data.status, progress: data.progress || 0 });
+
+      if (data.status === 'succeeded' && data.results?.length > 0) {
+        return data.results.map(r => ({ url: r.url, revised_prompt: r.content || '' }));
+      }
+      if (data.status === 'failed') {
+        throw new Error(data.failure_reason || data.error || '生成失败');
+      }
+      await new Promise(r => setTimeout(r, interval));
+    }
+    throw new Error('查询超时');
+  }
   async function midjourneyImagine({ prompt, base64Array = [], count = 1, signal }) {
     const key = activeKey();
     if (!key) throw new Error('Midjourney 需要 API Key，请在设置中填写。');
@@ -784,7 +1008,15 @@ const API_CLIENT = (() => {
     removeBackground,
 
     // 批量生图（瀑布流用）
-    generateImages
+    generateImages,
+
+    // ====== GRS AI Nano Banana ======
+    nanoBananaText,       // 文本生图
+    nanoBananaEdit,       // 参考图生图
+    nanoBananaPoll,       // 结果轮询
+    getNanoModel,         // 获取当前模型
+    setNanoModel,         // 设置模型
+    getNanoModels         // 获取所有可用模型
   };
 })();
 

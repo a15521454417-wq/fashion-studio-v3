@@ -267,42 +267,38 @@
 
   // ===================== 初始化 =====================
   function init() {
-    console.log('[FS-Init] 开始初始化...');
     try {
-      bindTabNav();          console.log('[FS-Init] ✅ bindTabNav');
-      bindPrompt();          console.log('[FS-Init] ✅ bindPrompt');
-      bindModelSelector();   console.log('[FS-Init] ✅ bindModelSelector');
-      bindAspectSelector();  console.log('[FS-Init] ✅ bindAspectSelector');
-      bindQualitySelector();  console.log('[FS-Init] ✅ bindQualitySelector');
-      bindGenerate();        console.log('[FS-Init] ✅ bindGenerate');
-      bindResults();         console.log('[FS-Init] ✅ bindResults');
-      bindHistory();         console.log('[FS-Init] ✅ bindHistory');
-      bindSettings();        console.log('[FS-Init] ✅ bindSettings');
-      bindUpload();          console.log('[FS-Init] ✅ bindUpload');
-      bindLightbox();        console.log('[FS-Init] ✅ bindLightbox');
-      bindKeyboard();        console.log('[FS-Init] ✅ bindKeyboard');
-      bindControlDock();     console.log('[FS-Init] ✅ bindControlDock');
-      bindTaskPanel();       console.log('[FS-Init] ✅ bindTaskPanel');
-      bindAgentPanel();      console.log('[FS-Init] ✅ bindAgentPanel');
-      bindSetupWizard();     console.log('[FS-Init] ✅ bindSetupWizard');
-      loadTemplates();       console.log('[FS-Init] ✅ loadTemplates');
-      loadSettings();        console.log('[FS-Init] ✅ loadSettings');
-      checkApiStatus();      console.log('[FS-Init] ✅ checkApiStatus');
-
-      switchTab('creative');   console.log('[FS-Init] ✅ switchTab(creative)');
+      bindTabNav();
+      bindPrompt();
+      bindModelSelector();
+      bindAspectSelector();
+      bindQualitySelector();
+      bindGenerate();
+      bindResults();
+      bindHistory();
+      bindSettings();
+      bindUpload();
+      bindLightbox();
+      bindKeyboard();
+      bindControlDock();
+      bindTaskPanel();
+      bindAgentPanel();
+      bindSetupWizard();
+      loadTemplates();
+      loadSettings();
+      checkApiStatus();
+      switchTab('creative');
 
       // IndexedDB 初始化：刷新后恢复上次生成结果
       if (ImageStore.isAvailable()) {
-        ImageStore.openDB().then(() => restoreLastSession()).catch((e) => { console.warn('[FS-Init] ⚠️ restoreLastSession:', e); });
+        ImageStore.openDB().then(() => restoreLastSession()).catch(() => {});
       }
-      console.log('[FS-Init] ✅ ImageStore check done');
 
       // ====== 对话流初始化 ======
       initChatFlow();
-      console.log('[FS-Init] ✅ initChatFlow — 全部初始化完成！');
     } catch(e) {
       console.error('[FS-Init] ❌ 初始化崩溃！', e);
-      alert('FashionStudio 初始化失败：' + e.message + '\n位置：' + e.stack?.split('\n')[1]?.trim());
+      alert('FashionStudio 初始化失败：' + e.message);
     }
   }
 
@@ -476,15 +472,10 @@
 
   /* ====== 发送（核心改造） ====== */
   window.chatSend = async function chatSend() {
-    var dbg = document.getElementById('fsDebugBadge');
     try {
-      console.log('[FS-Chat] chatSend called, busy:', busy);
-      if (dbg) dbg.textContent = 'chat: start';
       
-      if (busy) { console.warn('[FS-Chat] 忽略：正在生成中'); if (dbg) dbg.textContent = '→ busy!'; return; }
       const text = $('promptInput')?.value.trim();
       if (!text && S.tab !== 'cutout' && S.tab !== 'wan-video') {
-        showToast('请输入描述', 'warning'); if (dbg) dbg.textContent = '→ empty!'; return;
       }
 
       // API Key 检查
@@ -492,7 +483,6 @@
       if (isWanTab) {
         if (!WAN_API.hasKey()) { showToast('请先填写万相 API Key', 'error'); $('settingsModal').classList.remove('hidden'); return; }
       } else {
-        if (!API_CLIENT.hasKey()) { showToast('请先配置 API Key', 'error'); $('settingsModal').classList.remove('hidden'); if (dbg) dbg.textContent = '→ NO KEY!'; return; }
       }
 
       busy = true;
@@ -502,7 +492,6 @@
         console.log('[FS-Chat] session 为空，立即创建新会话');
         session = await FSDB.createSession('新会话');
       }
-      if (dbg) dbg.textContent = '→ inserting user msg...';
 
       // 1. 插入用户消息
       const userMsg = await FSDB.addMessage({
@@ -516,7 +505,6 @@
       // 清空输入
       $('promptInput').value = '';
 
-      if (dbg) dbg.textContent = '→ agent check...';
       // 2. Agent 优化提示词（如果开启）
       let finalPrompt = text;
       let agentOptimized = false;
@@ -529,7 +517,6 @@
         removeThinkingBubble();
       }
 
-      if (dbg) dbg.textContent = '→ style + loading...';
       // 3. 应用风格预设
       if (selectedStyle && STYLE_PRESETS[selectedStyle]) {
         finalPrompt = finalPrompt + ' ' + STYLE_PRESETS[selectedStyle].suffix;
@@ -546,11 +533,9 @@
       chatContainer.appendChild(loadingEl);
       scrollToBottom();
 
-      if (dbg) dbg.textContent = '→ calling API...';
       // 5. 调用原有 generate 核心逻辑获取结果
       const results = await doGenerateForChat(finalPrompt, isWanTab);
 
-      if (dbg) dbg.textContent = '→ saving results...';
       // 6. 移除加载消息，替换为真实结果
       const aiMsgImages = results.map(r => ({
         id: r.id || generateImgId(),
@@ -580,10 +565,8 @@
       persistResults(results, finalPrompt, S.tab);
 
       showToast('生成完成 🎉', 'success');
-      if (dbg) dbg.textContent = '✅ DONE!';
     } catch(e) {
       console.error('[FS-Chat] ❌ 崩溃！', e);
-      if (dbg) dbg.textContent = '❌ ERR:' + e.message;
       alert('⛔ chatSend 崩溃：\n' + e.message + '\n\n位置：' + (e.stack||'').split('\n')[1]?.trim());
     } finally { busy = false; }
   };
@@ -2859,25 +2842,13 @@ ${cameraSnippet}
   // ===================== 生成逻辑（保留原有完整逻辑，同时支持对话流） =====================
   function bindGenerate() {
     const btn = $('btnGenerate');
-    console.log('[FS-Init] bindGenerate — btn:', btn ? '✅ found' : '❌ missing');
     btn?.addEventListener('click', (e) => {
-      console.log('[FS-Gen] 🔘 按钮被点击！S.tab =', S.tab, 'busy =', busy);
       e.preventDefault();
-      
-      // === 调试：立即显示视觉反馈 ===
-      var dbgBadge = document.getElementById('fsDebugBadge');
-      if (dbgBadge) dbgBadge.textContent = 'CLICKED! tab=' + S.tab + ' busy=' + busy;
-      
       // 如果是对话模式 Tab，走对话流
       const chatTabs = ['creative','wearables','model','retouch','background','edit','lighting'];
       if (chatTabs.includes(S.tab)) {
-        console.log('[FS-Gen] → 调用 chatSend()...');
-        if (dbgBadge) dbgBadge.textContent = '→ chatSend...';
-        window.chatSend().then(() => { if (dbgBadge) dbgBadge.textContent = 'chatSend DONE'; }).catch(err => { if (dbgBadge) dbgBadge.textContent = 'ERR:' + err.message; });
+        window.chatSend();
       } else {
-        // 非 Tab（如 cutout/wan）走原有逻辑
-        console.log('[FS-Gen] → 调用 generate()...');
-        if (dbgBadge) dbgBadge.textContent = '→ generate...';
         generate();
       }
     });
@@ -3566,14 +3537,54 @@ ${cameraSnippet}
   function fmtTime(ts) { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`; }
 
   // ===================== 设置 =====================
+  // 端点切换：显示/隐藏对应的配置组
+  function toggleEndpointGroups(endpoint) {
+    const grsaiGroup = $('grsaiGroup');
+    const nanoModelGroup = $('nanoModelGroup');
+    const blooomGroup = $('blooomGroup');
+    const isGrsai = endpoint === 'grsai';
+    if (grsaiGroup) grsaiGroup.classList.toggle('hidden', !isGrsai);
+    if (nanoModelGroup) nanoModelGroup.classList.toggle('hidden', !isGrsai);
+    if (blooomGroup) blooomGroup.classList.toggle('hidden', isGrsai);
+
+    // 更新提示文字
+    const hint = $('endpointHint');
+    if (hint) {
+      if (isGrsai) hint.textContent = 'GRS AI 国内直连，支持 Nano Banana 全系列模型，速度快画质好';
+      else hint.textContent = '选择要使用的 API 端点。两个 BLOOOOM 端点共用同一个 Key';
+    }
+  }
+
   function bindSettings() {
     $('btnSettings')?.addEventListener('click', () => { $('settingsModal')?.classList.remove('hidden'); loadSettings(); });
     $('closeSettings')?.addEventListener('click', () => { $('settingsModal')?.classList.add('hidden'); });
     $('cancelSettings')?.addEventListener('click', () => { $('settingsModal')?.classList.add('hidden'); });
     $('saveSettings')?.addEventListener('click', saveSettings);
     $$('#endpointSelector .seg-btn').forEach(btn => {
-      btn.addEventListener('click', () => { $$('#endpointSelector .seg-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); });
+      btn.addEventListener('click', () => {
+        $$('#endpointSelector .seg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        toggleEndpointGroups(btn.dataset.endpoint);
+      });
     });
+
+    // Nano Banana 模型选择
+    const modelSelect = $('nanoModelSelect');
+    if (modelSelect) {
+      const models = API_CLIENT.getNanoModels();
+      modelSelect.innerHTML = '';
+      for (const [id, info] of Object.entries(models)) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `${info.speed} ${info.label} (${info.quality.join('/')})`;
+        modelSelect.appendChild(opt);
+      }
+      modelSelect.value = API_CLIENT.getNanoModel();
+      modelSelect.addEventListener('change', () => {
+        API_CLIENT.setNanoModel(modelSelect.value);
+      });
+    }
+
     // Agent 来源选择
     $$('#agentSourceSelector .seg-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3594,9 +3605,22 @@ ${cameraSnippet}
   function loadSettings() {
     const cfg = API_CLIENT.getConfig();
     $$('#endpointSelector .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.endpoint === cfg.endpoint));
+    toggleEndpointGroups(cfg.endpoint);
+
+    // BLOOOOM Key
     const keyInput = $('apiKeyInput'); if (keyInput) keyInput.value = '';
     const hint = $('apiKeyHint');
     if (hint) hint.textContent = cfg.apiKey ? '已填写，当前会话有效' : '当前会话有效，关闭后需重新输入';
+    
+    // GRS AI Key
+    const grsaiKeyInput = $('grsaiKeyInput');
+    if (grsaiKeyInput) grsaiKeyInput.value = ''; // 不回显 Key
+    
+    // Nano Banana 模型
+    const nanoSelect = $('nanoModelSelect');
+    if (nanoSelect) nanoSelect.value = API_CLIENT.getNanoModel();
+    const nanoHint = $('nanoModelHint');
+
     $('outputDir').value = cfg.outputDir || '~/Documents/FashionStudio_Output';
     updateModelInfoDisplay(cfg.defaultModel || 'flash');
 
@@ -3631,7 +3655,20 @@ ${cameraSnippet}
   function saveSettings() {
     const activeEp = $$('#endpointSelector .seg-btn.active')[0]?.dataset.endpoint || 't8star';
     const key = $('apiKeyInput')?.value.trim() || '';
-    API_CLIENT.setConfig({ endpoint: activeEp, apiKey: key, outputDir: $('outputDir').value });
+
+    // GRS AI：保存独立 Key
+    const grsaiKey = $('grsaiKeyInput')?.value.trim() || '';
+    if (activeEp === 'grsai' && grsaiKey) {
+      API_CLIENT.setConfig({ endpoint: activeEp, apiKey: grsaiKey, outputDir: $('outputDir').value });
+    } else {
+      API_CLIENT.setConfig({ endpoint: activeEp, apiKey: key, outputDir: $('outputDir').value });
+    }
+
+    // Nano Banana 模型选择
+    const nanoSelect = $('nanoModelSelect');
+    if (nanoSelect && nanoSelect.value) {
+      API_CLIENT.setNanoModel(nanoSelect.value);
+    }
     const hint = $('apiKeyHint');
     if (hint) hint.textContent = key ? '已填写，当前会话有效' : '当前会话有效，关闭后需重新输入';
 

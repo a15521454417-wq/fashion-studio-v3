@@ -338,14 +338,29 @@
       </div>
       <div class="modal__body">
         <div class="form-group">
-          <label class="form-label">BLOOOOM 端点</label>
+          <label class="form-label">API 端点</label>
           <div class="seg-control" id="endpointSelector">
             <button class="seg-btn" data-endpoint="t8star" id="epBtnT8star">ai.t8star.cn</button>
             <button class="seg-btn" data-endpoint="comfly" id="epBtnComfly">api.comfly.chat</button>
+            <button class="seg-btn" data-endpoint="grsai" id="epBtnGrsai">🇨🇳 GRS AI（国内直连）</button>
           </div>
-          <p class="form-hint">选择要使用的 API 端点，两个端点共用同一个 Key</p>
+          <p class="form-hint" id="endpointHint">选择要使用的 API 端点。GRS AI 使用独立 Key，支持 Nano Banana 模型</p>
         </div>
-        <div class="form-group">
+
+        <!-- GRS AI 专用配置（选中 grsai 时显示） -->
+        <div class="form-group hidden" id="grsaiGroup">
+          <label class="form-label">GRS AI API Key</label>
+          <input type="password" class="input-field" id="grsaiKeyInput" placeholder="apikey..." autocomplete="off" />
+          <p class="form-hint" id="grsaiKeyHint">GRS AI 平台专用 Key，与 BLOOOOM Key 不同</p>
+        </div>
+        <div class="form-group hidden" id="nanoModelGroup">
+          <label class="form-label">Nano Banana 模型</label>
+          <select class="input-field" id="nanoModelSelect"></select>
+          <p class="form-hint" id="nanoModelHint">不同模型画质和速度不同，推荐 nano-banana-fast</p>
+        </div>
+
+        <!-- BLOOOOM / Comfly 通用配置 -->
+        <div class="form-group" id="blooomGroup">
           <label class="form-label">BLOOOOM API Key</label>
           <input type="password" class="input-field" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
           <p class="form-hint" id="apiKeyHint">当前会话有效，关闭后需重新输入</p>
@@ -450,43 +465,13 @@
 
   <script src="js/prompts.js"></script>
   <script src="js/db.js"></script>
-  <!-- 调试：脚本加载追踪 -->
-  <script>console.log('[FS-Load] ✅ prompts.js + db.js loaded');</script>
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js" onerror="console.error('[FS-Load] ❌ three.js FAILED to load!')" onload="console.log('[FS-Load] ✅ three.js loaded')"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js" onerror="console.error('[FS] ❌ three.js load failed')"></script>
   <script src="js/lighting_ball_3d.js"></script>
   <script src="js/camera_view_ball.js"></script>
-  <script>console.log('[FS-Load] ✅ 3D balls loaded');</script>
   <script src="js/api_client.js"></script>
   <script src="js/wan_api.js"></script>
-  <script>console.log('[FS-Load] ✅ API clients loaded');</script>
   <script src="js/prompt_agent.js"></script>
   <script src="js/image_store.js"></script>
-  <script>console.log('[FS-Load] ✅ agent + image_store loaded')</script>
   <script src="js/app.js"></script>
-  <!-- 最终调试：DOM 加载后检查 -->
-  <script>
-    window.addEventListener('load', () => {
-      console.log('=== FashionStudio 调试报告 ===');
-      console.log('btnGenerate:', document.getElementById('btnGenerate'));
-      console.log('promptInput:', document.getElementById('promptInput'));
-      console.log('chatContainer:', document.getElementById('chatContainer'));
-      console.log('setupOverlay hidden?', document.getElementById('setupOverlay')?.classList.contains('hidden'));
-      console.log('chatSend exists:', typeof window.chatSend);
-      console.log('FSDB exists:', typeof FSDB);
-      console.log('STYLE_PRESETS exists:', typeof STYLE_PRESETS);
-      console.log('=============================');
-      
-      // 在页面显示一个调试标记
-      var dbg = document.createElement('div');
-      dbg.id = 'fsDebugBadge';
-      dbg.style.cssText = 'position:fixed;bottom:4px;left:4px;z-index:99999;background:#222;color:#0f0;font-size:11px;padding:2px 6px;border-radius:3px;font-family:monospace;';
-      dbg.textContent = 'FS Debug Ready';
-      document.body.appendChild(dbg);
-    });
-    
-    window.addEventListener('error', function(e) {
-      console.error('[FS-Error]', e.message, '@', e.filename, ':', e.lineno);
-    });
-  </script>
 </body>
 </html>
