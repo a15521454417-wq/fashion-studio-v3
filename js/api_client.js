@@ -792,23 +792,15 @@ const API_CLIENT = (() => {
     return new Blob([arr], { type: mime });
   }
 
-  // ===================== 智能抠图 API（通过线上 Serverless 代理） =====================
-  // 端点: POST /api/remove-bg（Vercel Serverless Function）
-  // 流程: 前端 → /api/remove-bg → 抠抠图异步API → 轮询 → 返回图片URL
-  // 无需本地代理、无需 API Key 配置
+  // ===================== 智能抠图 API（koukoutu.com 直连） =====================
+  // 端点: POST https://sync.koukoutu.com/v1/create
+  // 同步 API，直接返回透明背景 PNG（data URL）
+  // 参数: model_key=background-removal + image=base64 / image_url=URL
+  // Key: fashion-studio（已内置）
+  const KOOKOUTU_API = 'https://sync.koukoutu.com/v1/create';
+  const KOOKOUTU_KEY = 'fashion-studio';
 
-  // 智能抠图 API 地址
-  // 部署到 Cloudflare Workers 后，使用以下地址
-  // Cloudflare Worker: https://fashion-studio-api.07a587f6f96d973c7b133777c5b280ed.workers.dev/api/remove-bg
-  const REMOVE_BG_API = (function() {
-    // 优先从 localStorage 读取（用户可自定义）
-    const saved = localStorage.getItem('fs_remove_bg_api');
-    if (saved) return saved;
-    // 默认值：Vercel Serverless Function 代理
-    return 'https://vercel-api-ebon-six.vercel.app/api/remove-bg';
-  })();
-
-  // 智能抠图主方法 - 调用线上 Serverless Function
+  // 智能抠图主方法 - 调用 koukoutu.com 同步抠图 API
   // @param {string} imageBase64 - 原图的 base64 data URL
   // @param {string} imageUrl - 原图的 URL
   // @param {object} signal - AbortSignal
@@ -818,37 +810,43 @@ const API_CLIENT = (() => {
 
     onProgress?.({ status: 'processing', message: '正在抠图中...' });
 
-    let processedImage = imageBase64;
-
     // 如果是 base64，压缩到最大 2000px 宽度
+    let processedImage = imageBase64;
     if (imageBase64) {
       processedImage = await compressImage(imageBase64, 2000);
     }
 
-    const body = processedImage
-      ? { image: processedImage }
-      : { image_url: imageUrl };
+    // koukoutu.com 请求格式
+    const body = new FormData();
+    body.append('model_key', 'background-removal');
+    if (processedImage) {
+      body.append('image', processedImage);
+    } else {
+      body.append('image_url', imageUrl);
+    }
 
-    const res = await fetch(REMOVE_BG_API, {
+    const res = await fetch(KOOKOUTU_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: { 'Authorization': `Bearer ${KOOKOUTU_KEY}` },
+      body,
       signal
     });
 
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      throw new Error(json.error || `抠图请求失败 (${res.status})`);
+      const text = await res.text().catch(() => '');
+      throw new Error(`抠图请求失败 (${res.status}): ${text}`);
     }
 
-    const data = await res.json();
-    if (!data.success || !data.url) {
-      throw new Error(data.error || '抠图返回异常');
-    }
-
-    onProgress?.({ status: 'succeeded' });
-
-    return [{ url: data.url }];
+    // koukoutu.com 同步返回透明背景 PNG，直接作为 data URL 使用
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onProgress?.({ status: 'succeeded' });
+        resolve([{ url: reader.result }]);
+      };
+      reader.readAsDataURL(blob);
+    });
   }
 
   // 压缩图片到指定最大宽度
