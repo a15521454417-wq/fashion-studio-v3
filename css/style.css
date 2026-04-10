@@ -2193,3 +2193,16 @@ body {
   .img-info-panel { width: 100vw; right: -100vw; }
   .lightbox__nav { width: 38px; height: 38px; font-size: 18px; }
 }
+
+/* ============================================================
+   画笔涂抹抠图
+   ============================================================ */
+#brushCanvas {
+  pointer-events: auto;
+  border-radius: 4px;
+}
+.brush-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

@@ -1089,8 +1089,15 @@
       <div class="panel-section">
         <h3 class="panel-section__title">抠图类型</h3>
         <div class="item-grid" id="cutoutTypes">
-          <button class="item-btn active" data-type="white"><span class="item-btn__icon">◻️</span><span>白底抠图</span></button>
+          <button class="item-btn active" data-type="white"><span class="item-btn__icon">◻️</span><span>自动抠图</span></button>
           <button class="item-btn" data-type="scene"><span class="item-btn__icon">✂️</span><span>场景抠图</span></button>
+          <button class="item-btn" data-type="brush"><span class="item-btn__icon">🖌️</span><span>涂抹抠图</span></button>
+        </div>
+      </div>
+      <div class="panel-section" id="brushHint" style="display:none;">
+        <p class="panel-hint">🖌️ 涂抹模式：在图上画出要保留的主体区域，然后点击"抠图"按钮</p>
+        <div class="brush-tools">
+          <button class="btn btn--sm btn--accent" id="btnClearBrush">🗑️ 清除笔迹</button>
         </div>
       </div>
       <div class="panel-section">
@@ -1637,12 +1644,33 @@
         container.querySelectorAll('.item-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         S.subType.cutout = btn.dataset.type;
+
+        // 切换涂抹模式 UI
+        const brushHint = document.querySelector('#brushHint');
+        if (brushHint) {
+          brushHint.style.display = S.subType.cutout === 'brush' ? 'block' : 'none';
+        }
+        toggleBrushOverlay(S.subType.cutout === 'brush');
+
         // 抠图不需要预设提示词，清空输入框
         S.prompt = '';
-        $('promptInput').value = '';
+        if ($('promptInput')) $('promptInput').value = '';
         updatePromptCounter();
       });
     });
+
+    // 绑定"清除笔迹"按钮
+    const clearBtn = document.querySelector('#btnClearBrush');
+    if (clearBtn && !clearBtn._bound) {
+      clearBtn._bound = true;
+      clearBtn.addEventListener('click', () => clearBrushCanvas());
+    }
+
+    // 初始显示
+    const brushHint = document.querySelector('#brushHint');
+    if (brushHint) {
+      brushHint.style.display = (S.subType.cutout === 'brush') ? 'block' : 'none';
+    }
     if (!S.subType.cutout) S.subType.cutout = 'white';
   }
 
@@ -3018,18 +3046,45 @@ ${cameraSnippet}
 
           const imageBase64 = compositeMain;
 
-          results = await API_CLIENT.removeBackground({
-            imageBase64,
-            signal,
-            onProgress: (task) => {
-              const statusMap = {
-                'processing': '正在抠图处理...',
-                'succeeded': '处理完成',
-                'failed': '处理失败'
-              };
-              if (cutoutLoadingSubEl) cutoutLoadingSubEl.textContent = statusMap[task.status] || `状态: ${task.status}`;
+          // 涂抹抠图模式 → 使用 MediaPipe
+          if (S.subType.cutout === 'brush') {
+            if (paintedPoints.length === 0) {
+              showToast('请先在图上涂抹要抠出的区域', 'warning');
+              showLoading(false);
+              if (cutoutLoadingTextEl) cutoutLoadingTextEl.textContent = '正在生成，请稍候...';
+              if (cutoutLoadingSubEl) cutoutLoadingSubEl.textContent = '预计 10-30 秒';
+              return;
             }
-          });
+            try {
+              results = await runBrushCutout(imageBase64, signal, (task) => {
+                if (cutoutLoadingSubEl) cutoutLoadingSubEl.textContent = task.message || '涂抹分割中...';
+              });
+            } catch (e) {
+              console.error('[涂抹抠图] 失败，切换自动抠图:', e.message);
+              showToast('涂抹抠图失败，自动切换到自动抠图', 'warning');
+              results = await API_CLIENT.removeBackground({
+                imageBase64,
+                signal,
+                onProgress: (task) => {
+                  if (cutoutLoadingSubEl) cutoutLoadingSubEl.textContent = task.message || '自动抠图中...';
+                }
+              });
+            }
+          } else {
+            // 自动抠图模式 → 使用 imgly
+            results = await API_CLIENT.removeBackground({
+              imageBase64,
+              signal,
+              onProgress: (task) => {
+                const statusMap = {
+                  'processing': '正在抠图处理...',
+                  'succeeded': '处理完成',
+                  'failed': '处理失败'
+                };
+                if (cutoutLoadingSubEl) cutoutLoadingSubEl.textContent = statusMap[task.status] || `状态: ${task.status}`;
+              }
+            });
+          }
 
           // 恢复加载文案
           if (cutoutLoadingTextEl) cutoutLoadingTextEl.textContent = '正在生成，请稍候...';
@@ -3994,6 +4049,150 @@ ${cameraSnippet}
         S.count = parseInt(btn.dataset.count);
       });
     });
+  }
+
+  // ===================== 画笔涂抹抠图 =====================
+  let brushCanvas = null;
+  let brushCtx = null;
+  let isDrawing = false;
+  let paintedPoints = [];  // 画笔坐标（像素）
+  let brushOverlayRef = null; // 画布覆盖的参考图元素
+
+  // 切换涂抹模式
+  function toggleBrushOverlay(show) {
+    const refStrip = $('refSection');
+    if (!refStrip) return;
+
+    if (!show) {
+      // 关闭：移除画布
+      if (brushCanvas) {
+        brushCanvas.remove();
+        brushCanvas = null;
+        brushCtx = null;
+        paintedPoints = [];
+      }
+      return;
+    }
+
+    // 打开：创建/显示画布
+    const refs = S.refImages.main || [];
+    if (refs.length === 0) {
+      showToast('请先上传图片', 'warning');
+      return;
+    }
+
+    // 在 ref-strip 的第一张图上叠加画布
+    const firstThumb = refStrip.querySelector('.ref-thumb img');
+    if (!firstThumb) return;
+
+    setupBrushCanvas(firstThumb);
+  }
+
+  // 在指定图片元素上初始化画布
+  function setupBrushCanvas(imgEl) {
+    const parent = imgEl.parentElement;
+    if (!parent) return;
+
+    // 如果已有画布，先移除
+    if (brushCanvas) {
+      brushCanvas.remove();
+      paintedPoints = [];
+    }
+
+    // 创建画布
+    brushCanvas = document.createElement('canvas');
+    brushCanvas.id = 'brushCanvas';
+    brushCanvas.style.cssText = `
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      cursor: crosshair;
+      z-index: 10;
+      pointer-events: auto;
+    `;
+    brushCanvas.width = imgEl.naturalWidth || imgEl.width;
+    brushCanvas.height = imgEl.naturalHeight || imgEl.height;
+
+    // 确保父容器相对定位
+    parent.style.position = 'relative';
+    parent.appendChild(brushCanvas);
+
+    brushCtx = brushCanvas.getContext('2d');
+    brushCtx.strokeStyle = '#4f46e5';
+    brushCtx.lineWidth = 12;
+    brushCtx.lineCap = 'round';
+    brushCtx.lineJoin = 'round';
+
+    // 绑定绘制事件
+    brushCanvas.addEventListener('mousedown', startBrush);
+    brushCanvas.addEventListener('mousemove', drawBrush);
+    brushCanvas.addEventListener('mouseup', endBrush);
+    brushCanvas.addEventListener('mouseleave', endBrush);
+    // 移动端支持
+    brushCanvas.addEventListener('touchstart', e => { e.preventDefault(); startBrush(e.touches[0]); });
+    brushCanvas.addEventListener('touchmove', e => { e.preventDefault(); drawBrush(e.touches[0]); });
+    brushCanvas.addEventListener('touchend', endBrush);
+  }
+
+  function getBrushPos(e) {
+    const rect = brushCanvas.getBoundingClientRect();
+    const scaleX = brushCanvas.width / rect.width;
+    const scaleY = brushCanvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  }
+
+  function startBrush(e) {
+    isDrawing = true;
+    paintedPoints = [];
+    const pos = getBrushPos(e);
+    paintedPoints.push(pos);
+    brushCtx.beginPath();
+    brushCtx.moveTo(pos.x, pos.y);
+  }
+
+  function drawBrush(e) {
+    if (!isDrawing) return;
+    const pos = getBrushPos(e);
+    paintedPoints.push(pos);
+    brushCtx.lineTo(pos.x, pos.y);
+    brushCtx.stroke();
+  }
+
+  function endBrush() {
+    if (!isDrawing) return;
+    isDrawing = false;
+    brushCtx?.beginPath();
+  }
+
+  // 清除画布
+  function clearBrushCanvas() {
+    if (!brushCanvas || !brushCtx) return;
+    brushCtx.clearRect(0, 0, brushCanvas.width, brushCanvas.height);
+    paintedPoints = [];
+  }
+
+  // 获取涂抹抠图结果（供 generate() 调用）
+  async function runBrushCutout(imageBase64, signal, onProgress) {
+    // 找到原图元素
+    const firstThumb = $('refSection')?.querySelector('.ref-thumb img');
+    if (!firstThumb) throw new Error('未找到原图');
+
+    // 初始化 MediaPipe
+    await window.__mpInit?.((msg) => onProgress?.({ status: 'processing', message: msg }));
+
+    if (!window.__mpIsReady?.()) {
+      throw new Error('MediaPipe 模型加载失败');
+    }
+
+    // 用原图 img 元素执行分割
+    const result = await window.__mpSegment?.(firstThumb, paintedPoints, (msg) => {
+      onProgress?.({ status: 'processing', message: msg });
+    });
+
+    return result ? [result] : null;
   }
 
   // ===================== Toast =====================
