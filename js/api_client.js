@@ -792,15 +792,15 @@ const API_CLIENT = (() => {
     return new Blob([arr], { type: mime });
   }
 
-  // ===================== 智能抠图 API（koukoutu.com 直连） =====================
-  // 端点: POST https://sync.koukoutu.com/v1/create
-  // 同步 API，直接返回透明背景 PNG（data URL）
-  // 参数: model_key=background-removal + image=base64 / image_url=URL
-  // Key: fashion-studio（已内置）
+  // ===================== 智能抠图 API =====================
+  // 优先级：① imgly/background-removal（本地离线）→ ② koukoutu.com（在线备选）
+  // ① @imgly/background-removal: 浏览器端 WASM+ONNX，模型缓存到 IndexedDB，完全离线
+  // ② koukoutu.com: 在线 API，imgly 不可用时的备选
+
   const KOOKOUTU_API = 'https://sync.koukoutu.com/v1/create';
   const KOOKOUTU_KEY = 'fashion-studio';
 
-  // 智能抠图主方法 - 调用 koukoutu.com 同步抠图 API
+  // 智能抠图主方法 - imgly 本地优先，koukoutu fallback
   // @param {string} imageBase64 - 原图的 base64 data URL
   // @param {string} imageUrl - 原图的 URL
   // @param {object} signal - AbortSignal
@@ -808,15 +808,42 @@ const API_CLIENT = (() => {
   async function removeBackground({ imageBase64, imageUrl, signal, onProgress } = {}) {
     if (!imageBase64 && !imageUrl) throw new Error('缺少图片数据');
 
-    onProgress?.({ status: 'processing', message: '正在抠图中...' });
+    onProgress?.({ status: 'processing', message: '正在抠图中（本地模型）...' });
 
-    // 如果是 base64，压缩到最大 2000px 宽度
+    // === 优先：imgly 本地抠图 ===
+    try {
+      const imglyResult = await tryImglyRemoveBg({ imageBase64, imageUrl, signal, onProgress });
+      if (imglyResult) {
+        onProgress?.({ status: 'succeeded' });
+        return imglyResult;
+      }
+    } catch (err) {
+      console.warn('[抠图] imgly 本地失败，切换备选方案:', err.message);
+    }
+
+    // === 备选：koukoutu.com 在线抠图 ===
+    onProgress?.({ status: 'processing', message: '正在抠图中（云端备选）...' });
+    return await removeBackgroundByKoukoutu({ imageBase64, imageUrl, signal, onProgress });
+  }
+
+  // imgly 本地抠图（内部方法）
+  async function tryImglyRemoveBg({ imageBase64, imageUrl, signal, onProgress } = {}) {
+    if (typeof window !== 'undefined' && window.__imglyRemoveBg) {
+      const imgSrc = imageBase64 || imageUrl;
+      const result = await window.__imglyRemoveBg(imgSrc, onProgress);
+      return result ? [result] : null;
+    }
+    // 如果 imgly 未加载，返回 null 触发 fallback
+    return null;
+  }
+
+  // koukoutu.com 抠图（内部方法，备选方案）
+  async function removeBackgroundByKoukoutu({ imageBase64, imageUrl, signal, onProgress } = {}) {
     let processedImage = imageBase64;
     if (imageBase64) {
       processedImage = await compressImage(imageBase64, 2000);
     }
 
-    // koukoutu.com 请求格式
     const body = new FormData();
     body.append('model_key', 'background-removal');
     if (processedImage) {
@@ -837,7 +864,6 @@ const API_CLIENT = (() => {
       throw new Error(`抠图请求失败 (${res.status}): ${text}`);
     }
 
-    // koukoutu.com 同步返回透明背景 PNG，直接作为 data URL 使用
     const blob = await res.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
