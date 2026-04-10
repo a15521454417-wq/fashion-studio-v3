@@ -827,13 +827,27 @@ const API_CLIENT = (() => {
   }
 
   // imgly 本地抠图（内部方法）
+  // 等待 imgly 模块加载完成后再调用（ESM 模块异步加载）
   async function tryImglyRemoveBg({ imageBase64, imageUrl, signal, onProgress } = {}) {
-    if (typeof window !== 'undefined' && window.__imglyRemoveBg) {
-      const imgSrc = imageBase64 || imageUrl;
-      const result = await window.__imglyRemoveBg(imgSrc, onProgress);
-      return result ? [result] : null;
+    // 等待 window.__imglyRemoveBg 可用（最多等 10 秒）
+    const maxWait = 10000;
+    const startTime = Date.now();
+    while (!window.__imglyRemoveBg && Date.now() - startTime < maxWait) {
+      await new Promise(r => setTimeout(r, 200));
     }
-    // 如果 imgly 未加载，返回 null 触发 fallback
+
+    if (window.__imglyRemoveBg) {
+      const imgSrc = imageBase64 || imageUrl;
+      try {
+        const result = await window.__imglyRemoveBg(imgSrc, onProgress);
+        return result ? [result] : null;
+      } catch (err) {
+        console.warn('[imgly] 抠图失败:', err.message);
+        throw err; // 向上抛，让外层 catch 捕获后走 fallback
+      }
+    }
+    // imgly 未加载，返回 null 触发 fallback
+    console.warn('[抠图] imgly 模块未就绪，切换到云端备选');
     return null;
   }
 
