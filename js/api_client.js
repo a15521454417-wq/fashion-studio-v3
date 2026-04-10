@@ -610,9 +610,14 @@ const API_CLIENT = (() => {
       buffer = lines.pop(); // 保留不完整的行
 
       for (const line of lines) {
-        if (!line.trim()) continue;
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === '[DONE]') continue;
+        // SSE 格式：去掉 "data: " 前缀后再解析
+        const jsonStr = trimmed.startsWith('data: ')
+          ? trimmed.slice(6)
+          : trimmed;
         try {
-          const data = JSON.parse(line);
+          const data = JSON.parse(jsonStr);
           
           // 进度回调
           if (data.progress !== undefined && onProgress) {
