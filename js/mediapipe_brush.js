@@ -29,14 +29,14 @@ export async function initSegmenter(onProgress) {
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
     );
 
-    const options = new InteractiveSegmenterOptions({
+    const options = {
       baseOptions: {
         modelAssetPath: MP_MODEL_URL,
         delegate: 'CPU'   // CPU 兼容性最好
       },
       outputCategoryMask: true,
       outputConfidenceMask: false
-    });
+    };
 
     segmenter = await InteractiveSegmenter.createFromOptions(vision, options);
     segmenterReady = true;
