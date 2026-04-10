@@ -887,6 +887,19 @@
       b.classList.toggle('active', b.dataset.tab === tab);
     });
 
+    // 只有创意生图（creative）显示瀑布流聊天框，其他 Tab 隐藏
+    const chatContainer = $('chatContainer');
+    const isCreative = tab === 'creative';
+    if (chatContainer) {
+      chatContainer.style.display = isCreative ? '' : 'none';
+    }
+
+    // 非创意生图 Tab：隐藏聊天框相关的空状态，显示传统 results
+    if (!isCreative) {
+      const emptyState = $('emptyState');
+      if (emptyState) emptyState.classList.add('hidden');
+    }
+
     // 信息面板（旧版元素可能不存在，安全访问）
     const infoEl = $('infoContent');
     if (infoEl) { /* infoContent 已弃用，保留 DOM 引用兼容 */ }
@@ -3338,10 +3351,21 @@ ${cameraSnippet}
     const resultsEl = $('results');
     if (emptyState) emptyState.classList.add('hidden');
     if (infoPanel) infoPanel.classList.add('hidden');
-    if (resultsEl) resultsEl.classList.remove('hidden');
+
+    // 确保 results 容器存在（非对话流模式）
+    let resultsContainer = resultsEl;
+    if (!resultsContainer) {
+      resultsContainer = document.createElement('div');
+      resultsContainer.id = 'results';
+      resultsContainer.className = 'results';
+      resultsContainer.innerHTML = '<div class="results__grid" id="resultsGrid"></div>';
+      const canvasArea = $('canvasArea');
+      if (canvasArea) canvasArea.appendChild(resultsContainer);
+    }
+    resultsContainer.classList.remove('hidden');
 
     const grid = $('resultsGrid');
-    if (!grid) return; // 对话流模式下不存在 resultsGrid
+    if (!grid) return;
     grid.innerHTML = '';
     results.forEach((item, i) => {
       // 优先使用缩略图
@@ -3396,7 +3420,18 @@ ${cameraSnippet}
     const resultsEl = $('results');
     if (emptyState) emptyState.classList.add('hidden');
     if (infoPanel) infoPanel.classList.add('hidden');
-    if (resultsEl) resultsEl.classList.remove('hidden');
+
+    // 确保 results 容器存在（非对话流模式）
+    let resultsContainer = resultsEl;
+    if (!resultsContainer) {
+      resultsContainer = document.createElement('div');
+      resultsContainer.id = 'results';
+      resultsContainer.className = 'results';
+      resultsContainer.innerHTML = '<div class="results__grid" id="resultsGrid"></div>';
+      const canvasArea = $('canvasArea');
+      if (canvasArea) canvasArea.appendChild(resultsContainer);
+    }
+    resultsContainer.classList.remove('hidden');
 
     const grid = $('resultsGrid');
     if (!grid) return;
